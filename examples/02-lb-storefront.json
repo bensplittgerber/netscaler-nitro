@@ -1,0 +1,38 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "steps": [
+    { "comment": "StoreFront servers" },
+    { "resource": "server", "data": { "name": "sf01", "ipaddress": "10.0.10.21" } },
+    { "resource": "server", "data": { "name": "sf02", "ipaddress": "10.0.10.22" } },
+
+    { "comment": "StoreFront services (HTTPS)" },
+    { "resource": "service", "data": {
+        "name": "svc_sf01_https", "servername": "sf01", "servicetype": "SSL", "port": 443,
+        "usip": "NO", "useproxyport": "YES", "cka": "NO", "tcpb": "NO", "cmp": "NO",
+        "clttimeout": 180, "svrtimeout": 360 } },
+    { "resource": "service", "data": {
+        "name": "svc_sf02_https", "servername": "sf02", "servicetype": "SSL", "port": 443,
+        "usip": "NO", "useproxyport": "YES", "cka": "NO", "tcpb": "NO", "cmp": "NO",
+        "clttimeout": 180, "svrtimeout": 360 } },
+
+    { "comment": "Backend SSL profile (set ssl service)" },
+    { "resource": "sslservice", "method": "PUT",
+      "data": { "servicename": "svc_sf01_https", "sslprofile": "ns_default_ssl_profile_backend" } },
+    { "resource": "sslservice", "method": "PUT",
+      "data": { "servicename": "svc_sf02_https", "sslprofile": "ns_default_ssl_profile_backend" } },
+
+    { "comment": "LB vserver" },
+    { "resource": "lbvserver", "data": {
+        "name": "lb_storefront_https", "servicetype": "SSL", "ipv46": "10.0.20.11", "port": 443,
+        "persistencetype": "SOURCEIP", "clttimeout": 180 } },
+    { "resource": "lbvserver_service_binding",
+      "data": { "name": "lb_storefront_https", "servicename": "svc_sf01_https" } },
+    { "resource": "lbvserver_service_binding",
+      "data": { "name": "lb_storefront_https", "servicename": "svc_sf02_https" } },
+
+    { "comment": "Certificate" },
+    { "resource": "sslvserver_sslcertkey_binding",
+      "data": { "vservername": "lb_storefront_https", "certkeyname": "gateway_example_com" } }
+  ]
+}

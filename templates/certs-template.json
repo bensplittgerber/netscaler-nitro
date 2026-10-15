@@ -1,0 +1,46 @@
+{
+  "nsip": "https://<NSIP-or-SNIP-with-mgmt>",
+
+  "certificates": [
+    { "name": "<root_ca>",
+      "certFile": "../certs/<root.crt>" },
+
+    { "name": "<intermediate_ca>",
+      "certFile": "../certs/<intermediate.crt>",
+      "linkTo": "<root_ca>" },
+
+    { "name": "<server_cert_pem>",
+      "certFile": "../certs/<server.crt>",
+      "keyFile": "../certs/<server.key>",
+      "linkTo": "<intermediate_ca>" },
+
+    { "name": "<server_cert_encrypted_key>",
+      "certFile": "../certs/<server2.crt>",
+      "keyFile": "../certs/<server2.key>",
+      "password": "${env:KEY_PASS}",
+      "linkTo": "<intermediate_ca>" },
+
+    { "name": "<server_cert_pfx>",
+      "pfxFile": "../certs/<server3.pfx>",
+      "password": "${env:PFX_PASS}",
+      "linkTo": "<intermediate_ca>" },
+
+    { "name": "<existing_certkey_renewal>",
+      "certFile": "../certs/<renewed.crt>",
+      "keyFile": "../certs/<renewed.key>",
+      "linkTo": "<intermediate_ca>",
+      "update": true },
+
+    { "name": "<new_certkey_swap_on_vservers>",
+      "certFile": "../certs/<new.crt>",
+      "keyFile": "../certs/<new.key>",
+      "linkTo": "<intermediate_ca>",
+      "bindTo": ["<vs_name_1>", "<vs_name_2>"],
+      "replace": true },
+
+    { "name": "<cert_file_overwrite>",
+      "certFile": "../certs/<same-filename.crt>",
+      "keyFile": "../certs/<same-filename.key>",
+      "overwrite": true }
+  ]
+}

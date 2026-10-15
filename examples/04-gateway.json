@@ -1,0 +1,57 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "steps": [
+    { "comment": "Frontend SSL profile",
+      "note": "requires 'set ssl parameter -defaultProfile ENABLED' on the appliance" },
+    { "resource": "sslprofile", "data": {
+        "name": "ssl_prof_frontend_secure",
+        "sessreuse": "ENABLED", "sesstimeout": 120,
+        "tls1": "DISABLED", "tls11": "DISABLED", "tls13": "ENABLED",
+        "denysslreneg": "NONSECURE",
+        "hsts": "ENABLED", "maxage": 15552000, "includesubdomains": "YES", "preload": "YES" } },
+
+    { "comment": "Session action + policy (ICA proxy to StoreFront)" },
+    { "resource": "vpnsessionaction", "data": {
+        "name": "sess_act_storefront",
+        "transparentinterception": "OFF", "defaultauthorizationaction": "ALLOW",
+        "sso": "ON", "icaproxy": "ON", "clientlessvpnmode": "OFF",
+        "wihome": "https://10.0.20.11/Citrix/StoreWeb",
+        "storefronturl": "https://10.0.20.11" } },
+    { "resource": "vpnsessionpolicy",
+      "data": { "name": "sess_pol_storefront", "rule": "true", "action": "sess_act_storefront" } },
+
+    { "comment": "Gateway vserver" },
+    { "resource": "vpnvserver", "data": {
+        "name": "gw_example_com", "servicetype": "SSL", "ipv46": "10.0.20.12", "port": 443,
+        "dtls": "OFF", "downstateflush": "DISABLED", "listenpolicy": "NONE",
+        "authnprofile": "authnprof_gateway" } },
+    { "resource": "vpnvserver_staserver_binding",
+      "data": { "name": "gw_example_com", "staserver": "https://ddc1.example.local" } },
+    { "resource": "vpnvserver_staserver_binding",
+      "data": { "name": "gw_example_com", "staserver": "https://ddc2.example.local" } },
+    { "resource": "vpnvserver_vpnsessionpolicy_binding", "data": {
+        "name": "gw_example_com", "policy": "sess_pol_storefront",
+        "priority": 100, "gotopriorityexpression": "NEXT", "bindpoint": "REQUEST" } },
+
+    { "comment": "Built-in cache policies" },
+    { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",
+        "policy": "_cacheTCVPNStaticObjects", "priority": 10, "gotopriorityexpression": "END", "bindpoint": "REQUEST" } },
+    { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",
+        "policy": "_cacheOCVPNStaticObjects", "priority": 20, "gotopriorityexpression": "END", "bindpoint": "REQUEST" } },
+    { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",
+        "policy": "_cacheVPNStaticObjects", "priority": 30, "gotopriorityexpression": "END", "bindpoint": "REQUEST" } },
+    { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",
+        "policy": "_mayNoCacheReq", "priority": 40, "gotopriorityexpression": "END", "bindpoint": "REQUEST" } },
+    { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",
+        "policy": "_cacheWFStaticObjects", "priority": 10, "gotopriorityexpression": "END", "bindpoint": "RESPONSE" } },
+    { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",
+        "policy": "_noCacheRest", "priority": 20, "gotopriorityexpression": "END", "bindpoint": "RESPONSE" } },
+
+    { "comment": "SSL profile + certificate" },
+    { "resource": "sslvserver", "method": "PUT", "data": {
+        "vservername": "gw_example_com", "sslprofile": "ssl_prof_frontend_secure" } },
+    { "resource": "sslvserver_sslcertkey_binding", "data": {
+        "vservername": "gw_example_com", "certkeyname": "gateway_example_com" } }
+  ]
+}

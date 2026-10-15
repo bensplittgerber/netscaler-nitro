@@ -1,0 +1,20 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "certificates": [
+    {
+      "name": "le_yr1",
+      "certFile": "../certs/YR1-2028.crt"
+    },
+    {
+      "name": "gateway_example_com",
+      "certFile": "../certs/gateway.example.com.crt",
+      "keyFile":  "../certs/gateway.example.com.key",
+      "linkTo": "le_yr1"
+    },
+    {
+      "name": "idp_signing_cert",
+      "certFile": "../certs/idp-saml-signing.crt"
+    }
+  ]
+}

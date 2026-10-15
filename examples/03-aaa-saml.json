@@ -1,0 +1,34 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "steps": [
+    { "comment": "SAML action + advanced authentication policy" },
+    { "resource": "authenticationsamlaction", "data": {
+        "name": "saml_idp_gateway",
+        "samlidpcertname": "idp_signing_cert",
+        "samlsigningcertname": "gateway_example_com",
+        "samlredirecturl": "https://idp.example.com/sso/saml",
+        "samluserfield": "userprincipalname",
+        "samlissuername": "https://gateway.example.com",
+        "relaystaterule": "AAA.LOGIN.RELAYSTATE.EQ(\"https://gateway.example.com/\")",
+        "logouturl": "https://idp.example.com/sso/logout" } },
+    { "resource": "authenticationpolicy",
+      "data": { "name": "pol_saml_idp_gateway", "rule": "true", "action": "saml_idp_gateway" } },
+
+    { "comment": "AAA vserver (non-addressable)" },
+    { "resource": "authenticationvserver",
+      "data": { "name": "aaa_gateway", "servicetype": "SSL" } },
+    { "resource": "authenticationvserver_authenticationpolicy_binding", "data": {
+        "name": "aaa_gateway", "policy": "pol_saml_idp_gateway",
+        "priority": 100, "gotopriorityexpression": "NEXT" } },
+    { "resource": "sslvserver_sslcertkey_binding",
+      "data": { "vservername": "aaa_gateway", "certkeyname": "gateway_example_com" } },
+
+    { "comment": "Authentication profile (used by the Gateway vserver)",
+      "note": "authenticationhost decides the SAML ACS URL (https://<host>/cgi/samlauth) - it must be registered at the IdP" },
+    { "resource": "authenticationauthnprofile", "data": {
+        "name": "authnprof_gateway",
+        "authnvsname": "aaa_gateway",
+        "authenticationhost": "gateway.example.com" } }
+  ]
+}
