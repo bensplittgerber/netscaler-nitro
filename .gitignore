@@ -1,0 +1,22 @@
+# --- Secrets: never commit ---------------------------------------------------
+# Certificate material (keep only the folder)
+certs/*
+!certs/.gitkeep
+*.key
+*.pfx
+*.p12
+*.pem
+
+# Saved PowerShell credentials (Export-Clixml)
+*.cred.xml
+
+# --- Run output ---------------------------------------------------------------
+# Journals are written next to the scripts by Deploy-NsObjects.ps1
+scripts/journals/
+journals/
+
+# --- Editor / OS --------------------------------------------------------------
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
