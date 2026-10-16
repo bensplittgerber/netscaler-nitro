@@ -17,6 +17,7 @@ param(
     [Parameter(Mandatory)][string]$Journal,
     [pscredential]$Credential,
     [switch]$SkipCertificateCheck,
+    [string]$PinnedPublicKey,
     [switch]$NoProxy,
     [switch]$NoSave
 )
@@ -36,7 +37,7 @@ for ($i = $entries.Count - 1; $i -ge 0; $i--) {
 if (-not $PSCmdlet.ShouldProcess("$($entries.Count) entries on $($j.nsip)", 'undo')) { return }
 
 if (-not $Credential) { $Credential = Get-Credential -Message 'NetScaler NITRO login' }
-Connect-Nitro -NsIp $j.nsip -Credential $Credential -SkipCertificateCheck:$SkipCertificateCheck -NoProxy:$NoProxy
+Connect-Nitro -NsIp $j.nsip -Credential $Credential -SkipCertificateCheck:$SkipCertificateCheck -PinnedPublicKey $PinnedPublicKey -NoProxy:$NoProxy
 try {
     Write-Host "`n# Undo" -ForegroundColor Cyan
     $left = Invoke-NitroUndo -Entries $entries

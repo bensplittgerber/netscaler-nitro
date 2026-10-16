@@ -1,0 +1,45 @@
+{
+  "nsip": "https://192.0.2.10",
+  "steps": [
+    {
+      "comment": "Default SSL profile",
+      "note": "A fresh 14.1 VPX has it DISABLED: new SSL vservers then allow SSLv3/TLS1.0/1.1 and no TLS1.3. The CLI asks Y/N, NITRO does not. Cannot be undone (MANUAL) - take a snapshot first."
+    },
+    {
+      "resource": "sslparameter",
+      "method": "PUT",
+      "data": {
+        "defaultprofile": "ENABLED"
+      }
+    },
+    {
+      "comment": "Least-privilege NITRO user for certificate deployment (e.g. netscaler-acme), no nsroot",
+      "note": "Password only via environment: $env:CERT_USER_PW = Read-Host 'password' -MaskInput. The binding is the LAST step on purpose: if anything fails after it, the rollback has least to do."
+    },
+    {
+      "resource": "systemcmdpolicy",
+      "data": {
+        "policyname": "pol_cert_deploy",
+        "action": "ALLOW",
+        "cmdspec": "^show\\s+ns\\s+version$|^(show|add|link|unlink|update|bind|unbind)\\s+ssl\\s+.*|^(show|add|rm)\\s+system\\s+file\\s+.*|^save\\s+ns\\s+config|^sync\\s+ha\\s+files\\s+ssl|^create\\s+system\\s+backup.*"
+      }
+    },
+    {
+      "resource": "systemuser",
+      "data": {
+        "username": "cert-user",
+        "password": "${env:CERT_USER_PW}",
+        "externalauth": "DISABLED",
+        "maxsession": 5
+      }
+    },
+    {
+      "resource": "systemuser_systemcmdpolicy_binding",
+      "data": {
+        "username": "cert-user",
+        "policyname": "pol_cert_deploy",
+        "priority": 10
+      }
+    }
+  ]
+}

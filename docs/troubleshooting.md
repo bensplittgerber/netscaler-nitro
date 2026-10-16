@@ -8,6 +8,9 @@
 | `The proxy tunnel request to proxy '...' failed with status code '407'` | Request goes through a corporate proxy that wants authentication | `-NoProxy`, or a proxy exception for the NSIP/hostname |
 | `Unable to read data from the transport connection ... closed by the remote host` | Proxy, firewall, or TLS version/cipher mismatch | Test as below |
 | `Login failed: ...` | Wrong credentials or account not allowed to use NITRO | Check user, password, command policy |
+| `... failed (pinned sha256//...): The remote certificate was rejected by the provided RemoteCertificateValidationCallback` | Management certificate changed (renewed/replaced) or something else answers on the NSIP | `Get-NitroPin`, verify out of band, update the pin |
+| `-PinnedPublicKey must look like 'sha256//<44 base64 characters>'` | Pin without the `sha256//` prefix or truncated | Copy the full value |
+| `Unable to find type [NetScalerNitro.PinValidator]` / `ExportSubjectPublicKeyInfo` not found | PowerShell older than 7.2 | Update PowerShell, or use `-SkipCertificateCheck` |
 
 Without changing the scripts, the proxy can also be bypassed for the current PowerShell window:
 

@@ -9,6 +9,50 @@ $script:Base     = $null
 $script:Headers  = @{}
 $script:SkipCert = $false
 $script:NoProxy  = $false
+$script:Pin      = $null    # 'sha256//<base64 SPKI hash>' when -PinnedPublicKey is used
+$script:Client   = $null    # HttpClient used for pinned connections
+
+# Pinning: the TLS callback runs on .NET worker threads, where PowerShell script blocks cannot run.
+# A tiny C# validator is compiled once per session. Needs PowerShell 7.2+ (.NET 6: ExportSubjectPublicKeyInfo).
+if (-not ('NetScalerNitro.PinValidator' -as [type])) {
+    Add-Type -TypeDefinition @'
+using System;
+using System.Net.Http;
+using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
+namespace NetScalerNitro {
+    public static class PinValidator {
+        public static string Spki(X509Certificate2 cert) {
+            using (var sha = SHA256.Create())
+                return "sha256//" + Convert.ToBase64String(sha.ComputeHash(cert.PublicKey.ExportSubjectPublicKeyInfo()));
+        }
+        public static HttpClient NewClient(string pin, bool noProxy) {
+            var h = new HttpClientHandler();
+            h.UseProxy = !noProxy;
+            h.UseCookies = false;
+            h.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) =>
+                cert != null && string.Equals(Spki(cert), pin, StringComparison.Ordinal);
+            return new HttpClient(h) { Timeout = TimeSpan.FromSeconds(120) };
+        }
+    }
+}
+'@
+}
+
+function Get-NitroPin {
+    <# Returns 'sha256//<base64>' of the management certificate's public key (same format as acme-ns pin and
+       curl --pinnedpubkey). Reads the certificate WITHOUT trusting it: compare the value out of band (console,
+       'acme-ns pin' from another host) before you use it. #>
+    param([Parameter(Mandatory)][string]$NsIp)
+    $u = [uri]$NsIp
+    $port = if ($u.Port -gt 0) { $u.Port } else { 443 }
+    $tcp = [System.Net.Sockets.TcpClient]::new($u.Host, $port)
+    try {
+        $ssl = [System.Net.Security.SslStream]::new($tcp.GetStream(), $false, { $true })
+        $ssl.AuthenticateAsClient($u.Host)
+        [NetScalerNitro.PinValidator]::Spki([System.Security.Cryptography.X509Certificates.X509Certificate2]::new($ssl.RemoteCertificate))
+    } finally { $tcp.Dispose() }
+}
 
 function Import-NitroConfig {
     <# Loads a JSON config and replaces ${env:NAME} placeholders with environment variable values. #>
@@ -54,14 +98,31 @@ function Invoke-Nitro {
         SkipCertificateCheck = $script:SkipCert
         NoProxy              = $script:NoProxy
     }
-    if ($null -ne $Body) { $p.Body = $Body | ConvertTo-Json -Depth 20 -Compress }
-    # -ErrorAction Stop: connection/TLS errors must stop the run (the caller's
-    # $ErrorActionPreference does not reach into module scope)
-    $resp = Invoke-RestMethod @p -ErrorAction Stop
+    $json = if ($null -ne $Body) { $Body | ConvertTo-Json -Depth 20 -Compress } else { $null }
+    if ($script:Client) {
+        # pinned: the HttpClient handler checks every TLS handshake against the pin
+        $req = [System.Net.Http.HttpRequestMessage]::new([System.Net.Http.HttpMethod]::new($Method), $uri)
+        foreach ($h in $script:Headers.GetEnumerator()) { [void]$req.Headers.TryAddWithoutValidation($h.Key, [string]$h.Value) }
+        if ($null -ne $json) {
+            $req.Content = [System.Net.Http.StringContent]::new($json, [Text.Encoding]::UTF8)
+            # NITRO rejects 'application/json; charset=utf-8' ("Possible encoding values in Content-Type can be xml or json only")
+            $req.Content.Headers.ContentType = [System.Net.Http.Headers.MediaTypeHeaderValue]::new('application/json')
+        }
+        try   { $res = $script:Client.SendAsync($req).GetAwaiter().GetResult() }
+        catch { throw "NITRO request to $uri failed (pinned $($script:Pin)): $($_.Exception.GetBaseException().Message)" }
+        $httpStatus = [int]$res.StatusCode
+        $text = $res.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+        $resp = if ($text) { try { $text | ConvertFrom-Json } catch { $text } } else { $null }
+    } else {
+        if ($null -ne $json) { $p.Body = $json }
+        # -ErrorAction Stop: connection/TLS errors must stop the run (the caller's
+        # $ErrorActionPreference does not reach into module scope)
+        $resp = Invoke-RestMethod @p -ErrorAction Stop
+    }
     $code = 0
-    if ($resp -isnot [string] -and $null -ne $resp.errorcode) { $code = [int]$resp.errorcode }
+    if ($null -ne $resp -and $resp -isnot [string] -and $null -ne $resp.errorcode) { $code = [int]$resp.errorcode }
     if ($httpStatus -ge 400 -and $code -eq 0) { $code = -1 }
-    [pscustomobject]@{ Http = $httpStatus; ErrorCode = $code; Message = $resp.message; Data = $resp }
+    [pscustomobject]@{ Http = $httpStatus; ErrorCode = $code; Message = $(if ($resp -isnot [string]) { $resp.message }); Data = $resp }
 }
 
 function Connect-Nitro {
@@ -69,13 +130,25 @@ function Connect-Nitro {
         [Parameter(Mandatory)][string]$NsIp,
         [Parameter(Mandatory)][pscredential]$Credential,
         [switch]$SkipCertificateCheck,
-        [switch]$NoProxy          # connect directly, bypass the system/corporate proxy
+        [switch]$NoProxy,         # connect directly, bypass the system/corporate proxy
+        [string]$PinnedPublicKey  # 'sha256//<base64>': accept only this management certificate key (no CA trust needed)
     )
+    if ($PinnedPublicKey -and $SkipCertificateCheck) { throw 'Use either -PinnedPublicKey or -SkipCertificateCheck, not both.' }
+    if ($PinnedPublicKey -and $PinnedPublicKey -notmatch '^sha256//[A-Za-z0-9+/]{43}=$') {
+        throw "-PinnedPublicKey must look like 'sha256//<44 base64 characters>' (output of 'acme-ns pin' or Get-NitroPin)."
+    }
     $script:Base     = "$($NsIp.TrimEnd('/'))/nitro/v1/config"
     $script:SkipCert = $SkipCertificateCheck.IsPresent
     $script:NoProxy  = $NoProxy.IsPresent
     $script:Headers  = @{}
-    Write-Host "Connecting to $NsIp as $($Credential.UserName)..."
+    $script:Pin      = $null
+    if ($script:Client) { $script:Client.Dispose(); $script:Client = $null }
+    if ($PinnedPublicKey) {
+        $script:Pin    = $PinnedPublicKey
+        $script:Client = [NetScalerNitro.PinValidator]::NewClient($PinnedPublicKey, $script:NoProxy)
+    }
+    $how = if ($script:Pin) { " (pinned $($script:Pin))" } elseif ($script:SkipCert) { ' (certificate NOT checked)' } else { '' }
+    Write-Host "Connecting to $NsIp as $($Credential.UserName)$how..."
     $r = Invoke-Nitro -Method POST -Resource 'login' -Body @{ login = @{
         username = $Credential.UserName
         password = $Credential.GetNetworkCredential().Password
@@ -94,6 +167,7 @@ function Disconnect-Nitro {
     }
     $script:Base = $null
     $script:Headers = @{}
+    if ($script:Client) { $script:Client.Dispose(); $script:Client = $null }
 }
 
 function Write-NitroResult {
@@ -140,6 +214,31 @@ function ConvertTo-NitroHashtable($Data) {
     $h
 }
 
+# Key field per resource type. For "<parent>_..._binding" the parent decides (e.g. systemuser_systemcmdpolicy_binding
+# is keyed by username, aaagroup_aaauser_binding by groupname). Used for the step label AND for undo (F1).
+$script:NitroKeyByType = @{
+    systemuser = 'username'; systemgroup = 'groupname'; aaauser = 'username'; aaagroup = 'groupname'
+    vlan = 'id'; nsip = 'ipaddress'; nsip6 = 'ipv6address'; lbmonitor = 'monitorname'; sslcertkey = 'certkey'
+    sslvserver = 'vservername'; sslservice = 'servicename'; servicegroup = 'servicegroupname'
+    systemcmdpolicy = 'policyname'; sslprofile = 'name'; route = 'network'
+}
+# Fallback order for everything else
+$script:NitroKeys = 'name','servicegroupname','monitorname','certkey','vservername','servicename',
+                    'labelname','policylabelname','policyname','username','groupname','id','ipaddress'
+# Extra arguments a binding DELETE needs (all fields of the step except the key)
+$script:NitroBindingArgs = 'policy','policyname','servicename','servername','servicegroupname','port','ip','ipaddress','netmask',
+                           'ifnum','certkeyname','staserver','monitor_name','bindpoint','ca','snicert','username','groupname'
+
+function Get-NitroKey {
+    <# Returns the name of the key field of a step's data, or $null. #>
+    param([string]$Resource, $Data)
+    $d = ConvertTo-NitroHashtable $Data
+    $type = ($Resource -split '_')[0]
+    $k = $script:NitroKeyByType[$type]
+    if ($k -and $d.Contains($k) -and "$($d[$k])" -ne '') { return $k }
+    $script:NitroKeys | Where-Object { $d.Contains($_) -and "$($d[$_])" -ne '' } | Select-Object -First 1
+}
+
 function Get-NitroUndoEntry {
     <# Describes how to undo one successful step: delete an object, delete a binding, or 'manual' (not reversible). #>
     param([string]$Resource, [string]$Method, [string]$Action, $Data)
@@ -151,16 +250,15 @@ function Get-NitroUndoEntry {
         return [ordered]@{ type = 'manual'; resource = $Resource; note = "not reversed automatically: $Resource $what" }
     }
 
-    $primary = 'name','servicegroupname','monitorname','certkey','vservername','servicename','labelname','policyname' |
-               Where-Object { $d.Contains($_) } | Select-Object -First 1
-    if (-not $primary) {
-        return [ordered]@{ type = 'manual'; resource = $Resource; note = "not reversed automatically: $Resource (no key found)" }
+    $primary = Get-NitroKey -Resource $Resource -Data $d
+    if (-not $primary -or $Resource -eq 'route') {
+        $what = if ($primary) { " [$($d[$primary])]" } else { ' (no key found)' }
+        return [ordered]@{ type = 'manual'; resource = $Resource; note = "not reversed automatically: $Resource$what" }
     }
 
     $delArgs = [ordered]@{}
     if ($isBinding) {
-        foreach ($k in 'policy','policyname','servicename','servername','servicegroupname','port','ip',
-                       'certkeyname','staserver','monitor_name','bindpoint','ca','snicert') {
+        foreach ($k in $script:NitroBindingArgs) {
             if ($k -ne $primary -and $d.Contains($k)) { $delArgs[$k] = $d[$k] }
         }
     } elseif ($Resource -eq 'lbmonitor' -and $d.Contains('type')) {
@@ -226,4 +324,4 @@ function Invoke-NitroUndo {
 
 Export-ModuleMember -Function Import-NitroConfig, Invoke-Nitro, Connect-Nitro, Disconnect-Nitro,
                               Write-NitroResult, New-NitroBackup, Save-NitroConfig, Sync-NitroHaFiles,
-                              Get-NitroUndoEntry, Invoke-NitroUndo
+                              Get-NitroKey, Get-NitroUndoEntry, Invoke-NitroUndo, Get-NitroPin

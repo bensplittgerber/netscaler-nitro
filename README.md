@@ -18,14 +18,18 @@ netscaler-nitro/
 │   ├── NetScalerNitro.psm1        shared module (login, NITRO calls, results, rollback helpers)
 │   ├── Deploy-NsCertificates.ps1  certificate deployment
 │   ├── Deploy-NsObjects.ps1       configuration objects (with rollback + journal)
-│   └── Undo-NsObjects.ps1         removes a previous deployment using its journal
+│   ├── Undo-NsObjects.ps1         removes a previous deployment using its journal
+│   └── Invoke-NsDeployment.ps1    runs several object files in order (one-flow), prompts secrets once
 ├── templates/                     all supported patterns, every step disabled ("skip": true)
 │   ├── certs-template.json
 │   └── objects-template.json
-├── examples/                      a complete, generic StoreFront + SAML Gateway setup
+├── examples/                      a complete, generic StoreFront + SAML or Entra OIDC Gateway setup
+│   ├── 00-prereq.json             default SSL profile, least-privilege certificate user
+│   ├── 00-network.json            optional static routes / VLAN / SNIP (all steps skip:true)
 │   ├── 01-certs-example.json
 │   ├── 02-lb-storefront.json
-│   ├── 03-aaa-saml.json
+│   ├── 03-aaa-saml.json           SAML IdP ...
+│   ├── 03-aaa-oidc-entra.json     ... or Microsoft Entra ID via OIDC (same AAA/profile names)
 │   └── 04-gateway.json
 ├── configs/                       your real environment configs (no secrets in here!)
 ├── certs/                         certificate/key files - ignored by git
@@ -38,7 +42,7 @@ netscaler-nitro/
     └── troubleshooting.md
 ```
 
-The four files in `scripts/` must stay together: every script loads `NetScalerNitro.psm1` from its own folder.
+The files in `scripts/` must stay together: every script loads `NetScalerNitro.psm1` from its own folder.
 
 ## Quick start
 
@@ -64,7 +68,8 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 |---|---|---|
 | `-WhatIf` | all | Dry run: shows planned changes, changes nothing |
 | `-Credential` | all | Login credential; prompted for if omitted |
-| `-SkipCertificateCheck` | all | Accept the NetScaler's self-signed management certificate |
+| `-SkipCertificateCheck` | all | Accept the NetScaler's self-signed management certificate (no check at all) |
+| `-PinnedPublicKey` | all | Accept only this management certificate key (`sha256//...`), checked on every request |
 | `-NoProxy` | all | Connect directly, bypassing the system/corporate proxy |
 | `-NoSave` | all | Don't run `save ns config` (a reboot reverts the changes) |
 | `-Backup` | deploy scripts | Create a system backup before changing anything |
@@ -86,5 +91,5 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 
 - Never commit certificates, keys, `.cred.xml` files or passwords. `.gitignore` covers the usual cases; secrets in configs go through `${env:NAME}` placeholders.
 - Use a dedicated NetScaler account instead of `nsroot` for routine runs.
-- `-SkipCertificateCheck` is for labs. In production, give the management interface a trusted certificate.
+- `-SkipCertificateCheck` sends the credentials to whoever answers on the NSIP. Prefer `-PinnedPublicKey` (works with the self-signed certificate) or a trusted management certificate. Get the pin with `Get-NitroPin` or `acme-ns pin` and compare it out of band once.
 - Keep management traffic off web proxies (`-NoProxy` or a proxy exception), so credentials never pass an inspecting proxy.

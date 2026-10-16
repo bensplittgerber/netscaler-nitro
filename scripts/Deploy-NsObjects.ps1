@@ -26,12 +26,15 @@
     ./Deploy-NsObjects.ps1 -ConfigFile ./02-lb-storefront.json -SkipCertificateCheck -WhatIf
 .EXAMPLE
     ./Deploy-NsObjects.ps1 -ConfigFile ./02-lb-storefront.json -SkipCertificateCheck -Credential (Import-Clixml .\acme-user.cred.xml)
+.EXAMPLE
+    ./Deploy-NsObjects.ps1 -ConfigFile ./02-lb-storefront.json -PinnedPublicKey 'sha256//<base64 from acme-ns pin>'
 #>
 [CmdletBinding(SupportsShouldProcess)]
 param(
     [Parameter(Mandatory)][string]$ConfigFile,
     [pscredential]$Credential,
     [switch]$SkipCertificateCheck,
+    [string]$PinnedPublicKey,
     [switch]$NoProxy,
     [switch]$Backup,
     [switch]$NoSave,
@@ -50,9 +53,9 @@ if (-not $Credential) { $Credential = Get-Credential -Message 'NetScaler NITRO l
 $journal = [System.Collections.Generic.List[object]]::new()
 
 function Get-StepLabel($Resource, $Action, $Data) {
-    $id = foreach ($k in 'name','certkey','servicegroupname','servicename','vservername','monitorname','labelname','policyname','feature') {
-        if ($Data.$k) { $Data.$k; break }
-    }
+    # same key as the journal/undo uses (Get-NitroKey), so label and undo always name the same object
+    $k  = if ($Data) { Get-NitroKey -Resource $Resource -Data $Data } else { $null }
+    $id = if ($k) { $Data.$k } elseif ($Data.feature) { $Data.feature } else { $null }
     $s = $Resource
     if ($Action) { $s += " ?action=$Action" }
     if ($id)     { $s += "  [$($id -join ',')]" }
@@ -84,7 +87,7 @@ function Invoke-Step($Step) {
     }
 }
 
-Connect-Nitro -NsIp $cfg.nsip -Credential $Credential -SkipCertificateCheck:$SkipCertificateCheck -NoProxy:$NoProxy
+Connect-Nitro -NsIp $cfg.nsip -Credential $Credential -SkipCertificateCheck:$SkipCertificateCheck -PinnedPublicKey $PinnedPublicKey -NoProxy:$NoProxy
 try {
     if ($Backup -and $PSCmdlet.ShouldProcess('system backup', 'create')) { [void](New-NitroBackup) }
 
@@ -106,7 +109,12 @@ try {
     Write-Host ''
     if (-not $NoSave -and $PSCmdlet.ShouldProcess('running config', 'save ns config')) { [void](Save-NitroConfig) }
 
-    if ($journal.Count -gt 0) {
+    $undoable = @($journal | Where-Object { $_.type -ne 'manual' })
+    if ($journal.Count -gt 0 -and $undoable.Count -eq 0) {
+        # F2: a re-run where all add/bind steps were [EXISTS] and only set/action steps ran - nothing an undo could remove
+        Write-Host "No journal written: this run changed only settings that undo cannot reverse ($($journal.Count) x MANUAL)." -ForegroundColor DarkGray
+    }
+    elseif ($journal.Count -gt 0) {
         $dir  = Join-Path $PSScriptRoot 'journals'
         New-Item -ItemType Directory -Path $dir -Force | Out-Null
         $file = Join-Path $dir ('{0}-{1}.json' -f [IO.Path]::GetFileNameWithoutExtension($ConfigFile), (Get-Date -Format 'yyyyMMdd-HHmmss'))

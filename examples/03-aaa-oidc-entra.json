@@ -1,0 +1,79 @@
+{
+  "nsip": "https://192.0.2.10",
+  "steps": [
+    {
+      "comment": "ALTERNATIVE to 03-aaa-saml.json: Microsoft Entra ID via OpenID Connect",
+      "note": "Creates the same aaa_gateway / authnprof_gateway names, so 04-gateway.json works with either file. Entra app registration (Web) redirect URI: https://gateway.example.com/oauth/login (add :port if the Gateway is not on 443). Client secret only via $env:OIDC_CLIENT_SECRET. Tenants without user consent need 'Grant admin consent' for openid/profile/email/User.Read."
+    },
+    {
+      "resource": "authenticationoauthaction",
+      "data": {
+        "name": "oauth_entra_gateway",
+        "oauthtype": "GENERIC",
+        "metadataurl": "https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration",
+        "authorizationendpoint": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/authorize",
+        "tokenendpoint": "https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token",
+        "certendpoint": "https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys",
+        "issuer": "https://login.microsoftonline.com/<tenant-id>/v2.0",
+        "audience": "<application-client-id>",
+        "clientid": "<application-client-id>",
+        "clientsecret": "${env:OIDC_CLIENT_SECRET}",
+        "usernamefield": "preferred_username",
+        "authentication": "ENABLED",
+        "allowedalgorithms": [
+          "RS256"
+        ],
+        "pkce": "ENABLED",
+        "tokenendpointauthmethod": "client_secret_post"
+      }
+    },
+    {
+      "resource": "authenticationpolicy",
+      "data": {
+        "name": "pol_oauth_entra_gateway",
+        "rule": "true",
+        "action": "oauth_entra_gateway"
+      }
+    },
+    {
+      "comment": "AAA vserver (non-addressable)",
+      "note": "Login worked even while it was DOWN without a certificate (14.1 build 73.46); bind the Gateway certificate anyway - later firmware may need it and monitoring expects UP."
+    },
+    {
+      "resource": "authenticationvserver",
+      "data": {
+        "name": "aaa_gateway",
+        "servicetype": "SSL",
+        "ipv46": "0.0.0.0",
+        "port": 0
+      }
+    },
+    {
+      "resource": "authenticationvserver_authenticationpolicy_binding",
+      "data": {
+        "name": "aaa_gateway",
+        "policy": "pol_oauth_entra_gateway",
+        "priority": 100,
+        "gotopriorityexpression": "NEXT"
+      }
+    },
+    {
+      "resource": "sslvserver_sslcertkey_binding",
+      "data": {
+        "vservername": "aaa_gateway",
+        "certkeyname": "gateway_example_com"
+      }
+    },
+    {
+      "comment": "Authentication profile (used by the Gateway vserver in 04-gateway.json)",
+      "note": "No authenticationhost: the AAA vserver is non-addressable, /oauth/login runs on the Gateway."
+    },
+    {
+      "resource": "authenticationauthnprofile",
+      "data": {
+        "name": "authnprof_gateway",
+        "authnvsname": "aaa_gateway"
+      }
+    }
+  ]
+}

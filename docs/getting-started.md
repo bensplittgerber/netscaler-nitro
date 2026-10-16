@@ -16,6 +16,36 @@
 3. Put certificate and key files in `certs/` (ignored by git).
 4. Copy the examples or templates into `configs/` and adapt them to your environment. Set `nsip` at the top of every file.
 
+## Fresh appliance (14.1 VPX)
+
+A new VPX has the **default SSL profile disabled**: every new SSL vserver then allows SSLv3/TLS 1.0/1.1 and no TLS 1.3,
+and SSL profiles cannot be bound. Enable it once before anything else (`examples/00-prereq.json` does it via NITRO,
+without the CLI's Y/N prompt; it cannot be undone):
+
+```
+set ssl parameter -defaultProfile ENABLED
+```
+
+The default route is normally set at first boot. Static routes, extra VLANs and SNIPs: `examples/00-network.json`
+(all steps `skip: true`).
+
+## Trusting the management certificate
+
+| Option | Check | Use |
+|---|---|---|
+| `-SkipCertificateCheck` | none - credentials go to whoever answers on the NSIP | lab only |
+| `-PinnedPublicKey 'sha256//...'` | the certificate's public key must match, on every request | self-signed certificate |
+| neither | normal CA validation | trusted management certificate |
+
+```powershell
+Import-Module ./scripts/NetScalerNitro.psm1
+Get-NitroPin -NsIp https://192.0.2.10          # sha256//... - compare once out of band (console, another host)
+./scripts/Deploy-NsObjects.ps1 -ConfigFile ./configs/x.json -PinnedPublicKey 'sha256//...'
+```
+
+The value is the same as `acme-ns pin` (netscaler-acme) and `curl --pinnedpubkey`. It changes when the management
+certificate is replaced. Pinning needs PowerShell 7.2 or later.
+
 ## Credentials
 
 The scripts prompt with `Get-Credential` if `-Credential` is not given.
@@ -45,6 +75,17 @@ $env:LDAP_BIND_PW = Read-Host 'LDAP bind password' -MaskInput
 ```
 
 The run stops before connecting if a referenced variable is not set.
+
+## One flow (several files)
+
+```powershell
+./scripts/Invoke-NsDeployment.ps1 -ConfigFile ./configs/00-prereq.json, ./configs/02-lb.json, ./configs/04-gw.json `
+    -Secret CERT_USER_PW, OIDC_CLIENT_SECRET -PinnedPublicKey 'sha256//...' -WhatIf
+```
+
+Files run in order, the first failure stops the flow (that file is rolled back, earlier files keep their journals).
+Each `-Secret` variable is prompted masked if not set and removed again at the end. Files with only `skip: true` steps
+are skipped.
 
 ## Typical workflow
 

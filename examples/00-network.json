@@ -1,0 +1,60 @@
+{
+  "nsip": "https://192.0.2.10",
+  "steps": [
+    {
+      "comment": "OPTIONAL network config - every step skip:true, enable what the design needs",
+      "note": "The default route is usually set at first boot and is NOT part of this file. Routes, VLAN and IP steps are [MANUAL] in the journal (undo does not remove them). Changing VLANs/interfaces of the NSIP subnet can cut management access - have console access and a snapshot."
+    },
+    {
+      "comment": "Static routes"
+    },
+    {
+      "skip": true,
+      "resource": "route",
+      "data": {
+        "network": "10.0.0.0",
+        "netmask": "255.0.0.0",
+        "gateway": "192.0.2.1"
+      }
+    },
+    {
+      "comment": "Second leg: VLAN, interface, SNIP, IP binding"
+    },
+    {
+      "skip": true,
+      "resource": "vlan",
+      "data": {
+        "id": 20,
+        "aliasname": "backend"
+      }
+    },
+    {
+      "skip": true,
+      "resource": "vlan_interface_binding",
+      "data": {
+        "id": 20,
+        "ifnum": "1/2",
+        "tagged": false
+      }
+    },
+    {
+      "skip": true,
+      "resource": "nsip",
+      "data": {
+        "ipaddress": "198.51.100.5",
+        "netmask": "255.255.255.0",
+        "type": "SNIP",
+        "mgmtaccess": "DISABLED"
+      }
+    },
+    {
+      "skip": true,
+      "resource": "vlan_nsip_binding",
+      "data": {
+        "id": 20,
+        "ipaddress": "198.51.100.5",
+        "netmask": "255.255.255.0"
+      }
+    }
+  ]
+}

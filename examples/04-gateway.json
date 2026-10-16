@@ -3,13 +3,13 @@
 
   "steps": [
     { "comment": "Frontend SSL profile",
-      "note": "requires 'set ssl parameter -defaultProfile ENABLED' on the appliance" },
+      "note": "requires 'set ssl parameter -defaultProfile ENABLED' (see 00-prereq.json). HSTS preload stays NO: it would commit the whole parent domain to HTTPS in browsers." },
     { "resource": "sslprofile", "data": {
         "name": "ssl_prof_frontend_secure",
         "sessreuse": "ENABLED", "sesstimeout": 120,
         "tls1": "DISABLED", "tls11": "DISABLED", "tls13": "ENABLED",
         "denysslreneg": "NONSECURE",
-        "hsts": "ENABLED", "maxage": 15552000, "includesubdomains": "YES", "preload": "YES" } },
+        "hsts": "ENABLED", "maxage": 15552000, "includesubdomains": "NO", "preload": "NO" } },
 
     { "comment": "Session action + policy (ICA proxy to StoreFront)" },
     { "resource": "vpnsessionaction", "data": {

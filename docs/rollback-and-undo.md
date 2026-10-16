@@ -25,7 +25,7 @@ After a successful run that created something, the journal is written to:
 scripts/journals/<config-name>-<yyyyMMdd-HHmmss>.json
 ```
 
-The output ends with the matching undo command. No journal is written for `-WhatIf` runs, failed runs (they are rolled back) or runs where everything already existed.
+The output ends with the matching undo command. No journal is written for `-WhatIf` runs, failed runs (they are rolled back), runs where everything already existed, or runs that changed only `[MANUAL]` settings (typical re-run: all adds `[EXISTS]`, only `"method": "PUT"` steps applied again).
 
 ## Undo
 
@@ -47,7 +47,23 @@ The output ends with the matching undo command. No journal is written for `-What
 - Steps with `"action"` (e.g. `enable ns feature`)
 - Updates with `"method": "PUT"` (`set ...`)
 
+- Static routes (`route`): NITRO removes them by arguments, not by name
+
 Usually harmless: if the object was created by the same run, deleting it removes those settings too. Settings applied to pre-existing objects must be reverted by hand.
+
+A `set` that **references** another object blocks that object's removal. Example: an SSL profile bound with
+`sslvserver` PUT. Undo the profile file only after resetting the vservers:
+
+```
+set ssl vserver <vserver> -sslProfile ns_default_ssl_profile_frontend
+```
+
+## Which object an entry removes
+
+The key comes from the resource type: `systemuser` and `systemuser_*_binding` by `username`, `systemgroup*` and
+`aaagroup*` by `groupname`, `vlan*` by `id`, `nsip` by `ipaddress`, `lbmonitor*` by `monitorname`, `ssl*` by
+`vservername`/`servicename`/`certkey`; everything else by `name` (or the first known key field). The step label in the
+deploy output shows the same key, so what you see is what undo removes.
 
 ## Certificates
 

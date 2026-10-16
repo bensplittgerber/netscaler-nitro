@@ -27,6 +27,7 @@ param(
     [Parameter(Mandatory)][string]$ConfigFile,
     [pscredential]$Credential,
     [switch]$SkipCertificateCheck,
+    [string]$PinnedPublicKey,
     [switch]$NoProxy,
     [switch]$Backup,
     [switch]$NoSave,
@@ -123,7 +124,7 @@ function Set-CertBinding([string]$VServer, [string]$CertKey, [bool]$Replace) {
     [void](Write-NitroResult $label $r -ContinueOnError:$ContinueOnError)
 }
 
-Connect-Nitro -NsIp $cfg.nsip -Credential $Credential -SkipCertificateCheck:$SkipCertificateCheck -NoProxy:$NoProxy
+Connect-Nitro -NsIp $cfg.nsip -Credential $Credential -SkipCertificateCheck:$SkipCertificateCheck -PinnedPublicKey $PinnedPublicKey -NoProxy:$NoProxy
 try {
     if ($Backup -and $PSCmdlet.ShouldProcess('system backup', 'create')) { [void](New-NitroBackup) }
 
