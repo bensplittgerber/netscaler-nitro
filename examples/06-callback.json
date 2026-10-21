@@ -1,0 +1,19 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "steps": [
+    { "comment": "OPTIONAL dedicated StoreFront callback vserver callback.example.org (internal only)",
+      "note": "StoreFront validates Gateway logins by calling https://<callback URL>/CitrixAuthService/AuthService.asmx. A separate ICA-only vserver keeps that internal path off the public Gateway (useful with mTLS / client certificates on the public vserver, which StoreFront cannot present). The Gateway session table is global: no authentication or session policy is needed here. StoreFront: Gateway entry 'Callback URL' = https://callback.example.org; DNS callback.example.org -> 10.0.20.13 (internal)." },
+    { "resource": "vpnvserver", "data": {
+        "name": "gw_example_callback", "servicetype": "SSL", "ipv46": "10.0.20.13", "port": 443,
+        "icaonly": "ON", "dtls": "OFF", "downstateflush": "DISABLED", "listenpolicy": "NONE" } },
+    { "resource": "sslvserver", "method": "PUT",
+      "data": { "vservername": "gw_example_callback", "sslprofile": "ssl_prof_frontend_secure" } },
+    { "resource": "sslvserver_sslcertkey_binding",
+      "data": { "vservername": "gw_example_callback", "certkeyname": "callback_example_com" },
+      "note": "StoreFront must trust this certificate (public CA or an internal CA rolled out to the StoreFront servers)." },
+
+    { "comment": "Testing the callback",
+      "note": "A plain GET (browser, Invoke-WebRequest) on /CitrixAuthService/AuthService.asmx is closed by the NetScaler on EVERY Gateway vserver, also on working ones - it proves nothing. Test with a real Gateway login and check the Citrix Delivery Services event log on StoreFront (Citrix Authentication Service errors). TLS only: Test-NetConnection callback.example.org -Port 443" }
+  ]
+}

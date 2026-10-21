@@ -2,6 +2,38 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
+## [1.2.0] - unreleased
+
+### Fixed
+- Re-runs journaled pre-existing objects as created (F11): NetScaler 14.1 answers some re-adds with success instead
+  of `already exists` (seen on `authenticationpolicylabel` and `vpnvserver_*` policy bindings), so they were shown as
+  `[OK]` and an undo from that journal removed configuration the run never created. `Deploy-NsObjects.ps1` now looks
+  up every add/bind step first (`GET`, bindings matched on their policy/service/certkey/monitor/cipher argument):
+  found = `[EXISTS] (found before add)`, not sent, not journaled. Steps without a usable key behave as before.
+  Journals of re-runs written by 1.1.0 or older: see docs/troubleshooting.md.
+- Undo/rollback skipped a binding whenever its parent object was removed later, even if the binding referenced
+  another removed object that goes first: an SSL profile + cipher group created in one run failed to undo
+  (`Cipher group has bound entities`). Such bindings are now removed explicitly before that object.
+- Undo keys for `sslcipher` (`ciphergroupname`) and `ciphername` / `portaltheme` / `urlname` / `lbvserver` as binding
+  delete arguments (cipher group, SSL profile cipher, portal theme, bookmark and CS default-LB bindings).
+
+### Added
+- `-WhatIf` uses the same read-only lookups: a dry run shows `[EXISTS]` for what is already there and
+  `What if` only for what would really be created.
+- A run that created nothing says so ("No journal written: this run created nothing.").
+- `tests/Test-NsObjects.ps1`: offline test against a fake NITRO API (dry run, partial deploy, re-run, undo).
+- `examples/00-prereq.json`: host name, DNS servers, NTP server + sync.
+- `examples/02-lb-storefront.json`: HTTP monitor on the StoreFront web page (`service_lbmonitor_binding`).
+- `examples/05-ssl-hardening.json`: cipher group with forward secrecy + AEAD only, bound to the frontend SSL profile;
+  strict HTTP profile with WebSocket on the Gateway.
+- `examples/06-callback.json`: optional dedicated StoreFront callback vserver, how to test it.
+- `examples/07-authorization.json`: authorization policies through an AAA group + `defaultauthenticationgroup`
+  (14.1 binds authorization policies only to AAA users/groups, NITRO error 1232 otherwise).
+- Docs: CLI-to-NITRO table and undo keys for the new resource types; troubleshooting for HTTP CRLs without a
+  local file, session tickets vs. client-certificate factors, STA `DOWN` right after vserver creation, callback
+  tests; link to netscaler-rdp-proxy-oidc.
+- Step labels show the value for `dnsnameserver`, `ntpserver` and `nshostname`.
+
 ## [1.1.0] - 2026-10-17
 
 Validated end to end on a fresh NetScaler VPX 14.1 (build 73.46): deploy, re-run, undo, one-flow rebuild from a

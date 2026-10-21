@@ -1,0 +1,37 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "steps": [
+    { "comment": "OPTIONAL authorization for Gateway resources that are NOT ICA proxy (clientless access, bookmarks, RDP proxy, full VPN)",
+      "note": "Pattern: everyone who logs in through the IdP action lands in one AAA group (defaultauthenticationgroup), the authorization policies are bound to that group, and the session action denies by default. Complete working example with RDP proxy + Entra OIDC: https://github.com/bensplittgerber/netscaler-rdp-proxy-oidc" },
+
+    { "comment": "Authorization policies: only what the group may reach",
+      "note": "Authorization can be checked twice: on the HTTP request to the Gateway (e.g. /rdpproxy/<host>) and on the TCP connection to the backend. Keep HTTP and TCP conditions in separate policies - an HTTP expression on a pure TCP flow can evaluate UNDEF." },
+    { "resource": "authorizationpolicy", "data": {
+        "name": "authz_example_url",
+        "rule": "HTTP.REQ.URL.PATH.EQ(\"/rdpproxy/app01.example.local\")",
+        "action": "ALLOW" } },
+    { "resource": "authorizationpolicy", "data": {
+        "name": "authz_example_app01_rdp",
+        "rule": "CLIENT.IP.DST.EQ(10.0.30.21) && CLIENT.TCP.DSTPORT.EQ(3389)",
+        "action": "ALLOW" } },
+
+    { "comment": "AAA group + bindings",
+      "note": "NetScaler 14.1 binds authorization policies only to AAA users and groups: vpnvserver_authorizationpolicy_binding and vpnglobal_authorizationpolicy_binding fail with NITRO error 1232." },
+    { "resource": "aaagroup", "data": { "groupname": "grp_example_gateway" } },
+    { "resource": "aaagroup_authorizationpolicy_binding", "data": {
+        "groupname": "grp_example_gateway", "policy": "authz_example_url", "priority": 90, "type": "REQUEST" } },
+    { "resource": "aaagroup_authorizationpolicy_binding", "data": {
+        "groupname": "grp_example_gateway", "policy": "authz_example_app01_rdp", "priority": 100, "type": "REQUEST" } },
+
+    { "comment": "Every user authenticated by the OIDC action becomes a member of the group",
+      "note": "Same parameter on authenticationsamlaction / authenticationldapaction. MANUAL in the journal - before an undo: unset authentication OAuthAction oauth_entra_gateway -defaultAuthenticationGroup (a group in use cannot be removed)." },
+    { "resource": "authenticationoauthaction", "method": "PUT",
+      "data": { "name": "oauth_entra_gateway", "defaultauthenticationgroup": "grp_example_gateway" } },
+
+    { "comment": "Session action of that Gateway: deny everything that no policy allows",
+      "note": "Only for a non-ICA-proxy session action (icaproxy OFF). The ICA proxy action of 04-gateway.json keeps ALLOW: StoreFront/ICA traffic is not checked by authorization policies." },
+    { "skip": true, "resource": "vpnsessionaction", "method": "PUT",
+      "data": { "name": "sess_act_example_clientless", "defaultauthorizationaction": "DENY" } }
+  ]
+}

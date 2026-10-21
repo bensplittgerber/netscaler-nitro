@@ -1,6 +1,6 @@
 # Rollback and undo
 
-`Deploy-NsObjects.ps1` records every object and binding **it created** in a journal. Objects that already existed (`[EXISTS]`) are never recorded, so neither rollback nor undo can remove configuration that was there before.
+`Deploy-NsObjects.ps1` records every object and binding **it created** in a journal. Objects that already existed (`[EXISTS]`) are never recorded, so neither rollback nor undo can remove configuration that was there before. Since 1.2.0 every add/bind step is looked up before it is sent, because NITRO answers some re-adds with success; journals of re-runs written by 1.1.0 or older may contain pre-existing objects (see [troubleshooting](troubleshooting.md#re-run-journals-from-110-and-older)).
 
 ## Automatic rollback
 

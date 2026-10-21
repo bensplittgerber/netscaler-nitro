@@ -60,6 +60,37 @@ foreach ($p in 'Tls12','Tls13') { foreach ($np in $false,$true) {
 | `[MANUAL]` entries | `set`/`action` steps; revert by hand if they changed pre-existing objects |
 | Undo fails because an object is still in use | Undo dependent deployments first (reverse order) |
 
+## Re-run journals from 1.1.0 and older
+
+Before 1.2.0 a re-run could journal objects that already existed as `[OK]` (NITRO answers some re-adds with
+success, e.g. `authenticationpolicylabel` and `vpnvserver_*` policy bindings). An undo from such a journal removes
+configuration the run did not create. Check old journals of re-runs before using them (`Undo-NsObjects.ps1 -WhatIf`
+lists every entry) and delete entries for objects that existed before.
+
+## Gateway / SSL (lessons learned)
+
+| Situation | Cause / fix |
+|---|---|
+| STA servers of a new Gateway vserver `DOWN` | Normal for up to ~1 minute after the vserver is created; check again before troubleshooting |
+| HTTP CRL: `Status: Undefined`, `Last Update: Failed, the CRL is incomplete` although the CRL URL works | 14.1 does not build the first copy from HTTP. Create the CRL from a local file first, then switch on HTTP refresh (CLI below) |
+| Client-certificate nFactor factor (`CLIENT.SSL.CLIENT_CERT.EXISTS`) does not match, users see the user name/password form | `sessionTicket ENABLED` on the SSL profile: on a resumed TLS session the client certificate is not available. Keep session tickets `DISABLED` on profiles with a client-cert factor |
+| `vpnvserver_authorizationpolicy_binding` / `vpnglobal_authorizationpolicy_binding` -> `1232` | 14.1 binds authorization policies only to AAA users/groups, see `examples/07-authorization.json` |
+| Callback test with a browser / `Invoke-WebRequest` on `/CitrixAuthService/AuthService.asmx` fails | The NetScaler closes plain GETs there on every Gateway vserver. Test with a real login, see `examples/06-callback.json` |
+
+HTTP CRL that starts from a local file (NetScaler CLI; `client_ca_issuing` = the CA certkey that signs the CRL):
+
+```
+shell curl -s -o /var/netscaler/ssl/client_ca.crl http://pki.example.org/crl
+add ssl crl crl_client_ca client_ca.crl -inform DER -CAcert client_ca_issuing
+set ssl crl crl_client_ca -refresh ENABLED -method HTTP -url http://pki.example.org/crl -port 80 -interval DAILY -time 03:00
+set ssl crl crl_client_ca -interval NOW
+save ns config
+show ssl crl crl_client_ca
+```
+
+`show ssl crl` must say `Status: Valid` and `Last Update: Successful`. Because of this order, CRLs are not part of
+the JSON examples (a NITRO `sslcrl` add with only an HTTP URL ends up in the same `Undefined` state).
+
 ## SAML (lessons learned)
 
 - The SAML **ACS URL** is `https://<authentication host>/cgi/samlauth`. It is built from the hostname of the login (the authentication profile's `authenticationhost`), not from the SAML action name.

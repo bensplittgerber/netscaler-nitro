@@ -4,7 +4,7 @@ PowerShell 7 toolset that deploys NetScaler (ADC / Gateway) configuration throug
 
 - **Declarative JSON configs**: one file per area (certificates, LB, AAA, Gateway, ...)
 - **Certificates**: upload, create, link to CA, bind, in-place renewal, swap on vservers with rollback
-- **Objects**: any NITRO resource, safe to re-run (existing objects are skipped)
+- **Objects**: any NITRO resource, safe to re-run (every add/bind is looked up first; existing objects are skipped and never journaled)
 - **Safety**: dry run (`-WhatIf`), automatic rollback on failure, journal + undo, optional `-NoSave` and `-Backup`
 - **Runs on Windows and Linux** (PowerShell 7), no extra modules required
 
@@ -24,13 +24,18 @@ netscaler-nitro/
 │   ├── certs-template.json
 │   └── objects-template.json
 ├── examples/                      a complete, generic StoreFront + SAML or Entra OIDC Gateway setup
-│   ├── 00-prereq.json             default SSL profile, least-privilege certificate user
+│   ├── 00-prereq.json             host name, DNS, NTP, default SSL profile, least-privilege certificate user
 │   ├── 00-network.json            optional static routes / VLAN / SNIP (all steps skip:true)
 │   ├── 01-certs-example.json
 │   ├── 02-lb-storefront.json
 │   ├── 03-aaa-saml.json           SAML IdP ...
 │   ├── 03-aaa-oidc-entra.json     ... or Microsoft Entra ID via OIDC (same AAA/profile names)
-│   └── 04-gateway.json
+│   ├── 04-gateway.json
+│   ├── 05-ssl-hardening.json      cipher group (forward secrecy + AEAD only), strict HTTP profile with WebSocket
+│   ├── 06-callback.json           optional dedicated StoreFront callback vserver
+│   └── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
+├── tests/
+│   └── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
 ├── configs/                       your real environment configs (no secrets in here!)
 ├── certs/                         certificate/key files - ignored by git
 └── docs/
@@ -76,6 +81,17 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 | `-ContinueOnError` | deploy scripts | Keep going after a failed step |
 | `-NoRollback` | `Deploy-NsObjects` | Keep partial changes after a failure (for troubleshooting) |
 | `-SyncHaFiles` | `Deploy-NsCertificates` | `sync ha files ssl` after uploading certificates |
+
+## Tests
+
+```powershell
+./tests/Test-NsObjects.ps1    # no NetScaler needed: fake NITRO API on 127.0.0.1
+```
+
+## Related
+
+- [netscaler-rdp-proxy-oidc](https://github.com/bensplittgerber/netscaler-rdp-proxy-oidc): complete RDP proxy Gateway
+  with Microsoft Entra ID (OIDC) and authorization through an AAA group, deployed with these scripts.
 
 ## Documentation
 

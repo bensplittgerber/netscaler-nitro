@@ -27,7 +27,8 @@
         "dtls": "OFF", "downstateflush": "DISABLED", "listenpolicy": "NONE",
         "authnprofile": "authnprof_gateway" } },
     { "resource": "vpnvserver_staserver_binding",
-      "data": { "name": "gw_example_com", "staserver": "https://ddc1.example.local" } },
+      "data": { "name": "gw_example_com", "staserver": "https://ddc1.example.local" },
+      "note": "STA servers of a NEW Gateway vserver show DOWN for up to ~1 minute after it is created - normal, check again with 'show vpn vserver gw_example_com' before troubleshooting." },
     { "resource": "vpnvserver_staserver_binding",
       "data": { "name": "gw_example_com", "staserver": "https://ddc2.example.local" } },
     { "resource": "vpnvserver_vpnsessionpolicy_binding", "data": {

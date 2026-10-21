@@ -220,14 +220,49 @@ $script:NitroKeyByType = @{
     systemuser = 'username'; systemgroup = 'groupname'; aaauser = 'username'; aaagroup = 'groupname'
     vlan = 'id'; nsip = 'ipaddress'; nsip6 = 'ipv6address'; lbmonitor = 'monitorname'; sslcertkey = 'certkey'
     sslvserver = 'vservername'; sslservice = 'servicename'; servicegroup = 'servicegroupname'
-    systemcmdpolicy = 'policyname'; sslprofile = 'name'; route = 'network'
+    systemcmdpolicy = 'policyname'; sslprofile = 'name'; route = 'network'; sslcipher = 'ciphergroupname'
 }
 # Fallback order for everything else
 $script:NitroKeys = 'name','servicegroupname','monitorname','certkey','vservername','servicename',
                     'labelname','policylabelname','policyname','username','groupname','id','ipaddress'
 # Extra arguments a binding DELETE needs (all fields of the step except the key)
 $script:NitroBindingArgs = 'policy','policyname','servicename','servername','servicegroupname','port','ip','ipaddress','netmask',
-                           'ifnum','certkeyname','staserver','monitor_name','bindpoint','ca','snicert','username','groupname'
+                           'ifnum','certkeyname','staserver','monitor_name','bindpoint','ca','snicert','username','groupname',
+                           'ciphername','portaltheme','urlname','lbvserver'
+
+function Test-NitroExists {
+    <# F11: looks up the object or binding of an add/bind step BEFORE it is sent. NITRO answers some adds of an
+       existing object (e.g. authenticationpolicylabel, vpnvserver policy bindings) with success instead of 409, so
+       the response alone cannot tell "created" from "was already there".
+       Returns $true (exists), $false (does not exist) or $null (cannot tell - the caller sends the step as before). #>
+    param([Parameter(Mandatory)][string]$Resource, $Data)
+    $d   = ConvertTo-NitroHashtable $Data
+    $key = Get-NitroKey -Resource $Resource -Data $d
+    if (-not $key -or $Resource -eq 'route') { return $null }
+
+    $r = Invoke-Nitro -Method GET -Resource "$Resource/$([uri]::EscapeDataString([string]$d[$key]))"
+    if ($r.ErrorCode -ne 0) {
+        # 258 "No such resource" = the object (or the parent of a binding) does not exist
+        if ($r.ErrorCode -eq 258 -or $r.Http -eq 404 -or $r.Message -match 'No such resource|does not exist') { return $false }
+        return $null
+    }
+    $found = @($r.Data.$Resource | Where-Object { $_ })
+    if ($Resource -notlike '*_binding') { return $found.Count -gt 0 }
+
+    # binding: an entry must match every identifying argument of the step (bindpoint is not always returned)
+    $ids = @($script:NitroBindingArgs | Where-Object { $_ -ne $key -and $_ -ne 'bindpoint' -and $d.Contains($_) })
+    if (-not $ids.Count) { return $null }
+    foreach ($e in $found) {
+        $match = $true
+        foreach ($k in $ids) {
+            $v = $e.$k
+            if ($null -eq $v -and $d[$k] -is [bool]) { $v = $false }   # ca / snicert are omitted when false
+            if ("$v".TrimEnd('/') -ne "$($d[$k])".TrimEnd('/')) { $match = $false; break }
+        }
+        if ($match) { return $true }
+    }
+    $false
+}
 
 function Get-NitroKey {
     <# Returns the name of the key field of a step's data, or $null. #>
@@ -279,8 +314,16 @@ function Invoke-NitroUndo {
 
     # Objects removed in this undo. Their bindings disappear together with them, so those bindings
     # are not removed one by one (avoids failures on binding types with unusual delete arguments).
-    $removedObjects = @{}
-    foreach ($e in $Entries) { if ($e.type -eq 'object') { $removedObjects["$($e.resource)|$($e.key)"] = $true } }
+    # Exception: the binding references another removed object that was created AFTER the parent - that one is
+    # removed first and NetScaler refuses while it is still bound (e.g. sslprofile -> sslcipher group).
+    $removedObjects = @{}   # "<resource>|<key>" -> journal index
+    $removedKeys    = @{}   # key -> highest journal index of a removed object with that key
+    for ($i = 0; $i -lt $Entries.Count; $i++) {
+        $e = $Entries[$i]
+        if ($e.type -ne 'object') { continue }
+        $removedObjects["$($e.resource)|$($e.key)"] = $i
+        $removedKeys["$($e.key)"] = $i
+    }
     $vserverTypes = 'lbvserver','vpnvserver','authenticationvserver','csvserver','gslbvserver'
 
     for ($i = $Entries.Count - 1; $i -ge 0; $i--) {
@@ -297,6 +340,11 @@ function Invoke-NitroUndo {
                 default      { $parent }
             }
             $owner = $parents | Where-Object { $removedObjects.ContainsKey("$_|$($e.key)") } | Select-Object -First 1
+            if ($owner -and $e.args) {
+                $ownerIdx = $removedObjects["$owner|$($e.key)"]
+                $refs = @((ConvertTo-NitroHashtable $e.args).Values | Where-Object { $removedKeys.ContainsKey("$_") -and $removedKeys["$_"] -gt $ownerIdx })
+                if ($refs.Count) { $owner = $null }
+            }
             if ($owner) {
                 Write-Host "  [SKIP]    $($e.resource) [$($e.key)]  (removed together with $owner)" -ForegroundColor DarkGray
                 continue
@@ -324,4 +372,4 @@ function Invoke-NitroUndo {
 
 Export-ModuleMember -Function Import-NitroConfig, Invoke-Nitro, Connect-Nitro, Disconnect-Nitro,
                               Write-NitroResult, New-NitroBackup, Save-NitroConfig, Sync-NitroHaFiles,
-                              Get-NitroKey, Get-NitroUndoEntry, Invoke-NitroUndo, Get-NitroPin
+                              Get-NitroKey, Get-NitroUndoEntry, Invoke-NitroUndo, Get-NitroPin, Test-NitroExists

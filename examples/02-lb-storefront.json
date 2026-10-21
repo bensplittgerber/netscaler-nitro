@@ -22,6 +22,15 @@
     { "resource": "sslservice", "method": "PUT",
       "data": { "servicename": "svc_sf02_https", "sslprofile": "ns_default_ssl_profile_backend" } },
 
+    { "comment": "Monitor: the StoreFront web page must answer 200 (a plain TCP monitor stays UP when IIS or the store is broken)" },
+    { "resource": "lbmonitor", "data": {
+        "monitorname": "mon_storefront_web", "type": "HTTP", "secure": "YES",
+        "httprequest": "GET /Citrix/StoreWeb/", "respcode": ["200"] } },
+    { "resource": "service_lbmonitor_binding",
+      "data": { "name": "svc_sf01_https", "monitor_name": "mon_storefront_web" } },
+    { "resource": "service_lbmonitor_binding",
+      "data": { "name": "svc_sf02_https", "monitor_name": "mon_storefront_web" } },
+
     { "comment": "LB vserver" },
     { "resource": "lbvserver", "data": {
         "name": "lb_storefront_https", "servicetype": "SSL", "ipv46": "10.0.20.11", "port": 443,

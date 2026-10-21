@@ -11,7 +11,8 @@
       * "method": "PUT"   -> force a method (e.g. "set ssl vserver ...")
       * "skip": true      -> step is ignored (JSON has no comments - use this to switch steps off)
       * "note": "..."     -> free text, ignored by the script
-    Objects that already exist are skipped, so the file can be re-run safely.
+    Objects that already exist are skipped, so the file can be re-run safely: every add/bind step is looked up
+    (GET) before it is sent, because NITRO answers some re-adds with success instead of "already exists".
 
     Rollback:
       * Every object/binding CREATED by this run is recorded. Objects that already existed are never recorded,
@@ -55,7 +56,9 @@ $journal = [System.Collections.Generic.List[object]]::new()
 function Get-StepLabel($Resource, $Action, $Data) {
     # same key as the journal/undo uses (Get-NitroKey), so label and undo always name the same object
     $k  = if ($Data) { Get-NitroKey -Resource $Resource -Data $Data } else { $null }
-    $id = if ($k) { $Data.$k } elseif ($Data.feature) { $Data.feature } else { $null }
+    # label-only fallbacks (dnsnameserver, ntpserver, nshostname, nsfeature): these stay [MANUAL] for undo
+    $id = if ($k) { $Data.$k } else { $null }
+    foreach ($f in 'feature', 'ip', 'servername', 'serverip', 'hostname') { if (-not $id -and $Data.$f) { $id = $Data.$f } }
     $s = $Resource
     if ($Action) { $s += " ?action=$Action" }
     if ($id)     { $s += "  [$($id -join ',')]" }
@@ -77,6 +80,14 @@ function Invoke-Step($Step) {
               elseif ($res -like '*_binding') { 'PUT' }
               else { 'POST' }
     $label  = Get-StepLabel $res $action $Step.data
+
+    # F11: add/bind steps are looked up first - an existing object is never sent again and never journaled
+    # (NITRO answers some re-adds with success). Read-only, so -WhatIf shows it too.
+    $isAdd = -not $action -and ($method -eq 'POST' -or ($method -eq 'PUT' -and $res -like '*_binding'))
+    if ($isAdd -and (Test-NitroExists -Resource $res -Data $Step.data)) {
+        Write-Host "  [EXISTS]  $label  (found before add)" -ForegroundColor Yellow
+        return
+    }
 
     if (-not $PSCmdlet.ShouldProcess($label, $method)) { return }
     $q = if ($action) { @{ action = $action } } else { $null }
@@ -110,7 +121,10 @@ try {
     if (-not $NoSave -and $PSCmdlet.ShouldProcess('running config', 'save ns config')) { [void](Save-NitroConfig) }
 
     $undoable = @($journal | Where-Object { $_.type -ne 'manual' })
-    if ($journal.Count -gt 0 -and $undoable.Count -eq 0) {
+    if ($journal.Count -eq 0 -and -not $WhatIfPreference) {
+        Write-Host 'No journal written: this run created nothing.' -ForegroundColor DarkGray
+    }
+    elseif ($journal.Count -gt 0 -and $undoable.Count -eq 0) {
         # F2: a re-run where all add/bind steps were [EXISTS] and only set/action steps ran - nothing an undo could remove
         Write-Host "No journal written: this run changed only settings that undo cannot reverse ($($journal.Count) x MANUAL)." -ForegroundColor DarkGray
     }

@@ -66,6 +66,27 @@ add lb vserver lb_web SSL 10.0.20.11 443 -persistenceType SOURCEIP
 | `bind vpn vserver X -staServer url` | `vpnvserver_staserver_binding` |
 | `bind vpn vserver X -policy p -type REQUEST` | `vpnvserver_vpnsessionpolicy_binding` with `"bindpoint": "REQUEST"` |
 | `enable ns feature LB SSL` | `nsfeature` with `"action": "enable"` |
+| `set ns hostName ns01` | `nshostname` with `"method": "PUT"` |
+| `add dns nameServer 192.0.2.53` | `dnsnameserver` (`ip`) |
+| `add ntp server ntp.example.org` / `enable ntp sync` | `ntpserver` (`servername` or `serverip`) / `ntpsync` with `"action": "enable"` |
+| `bind service X -monitorName m` | `service_lbmonitor_binding` (`name`, `monitor_name`) |
+| `add ssl cipher g` / `bind ssl cipher g -cipherName c` | `sslcipher` (`ciphergroupname`) / `sslcipher_sslciphersuite_binding` |
+| `bind ssl profile p -cipherName g` | `sslprofile_sslcipher_binding` (`name`, `ciphername`) |
+| `add ns httpProfile p ...` / `set vpn vserver X -httpProfileName p` | `nshttpprofile` / `vpnvserver` with `"method": "PUT"` |
+| `add authorization policy p "rule" ALLOW` | `authorizationpolicy` |
+| `add aaa group g` / `bind aaa group g -policy p -type REQUEST` | `aaagroup` / `aaagroup_authorizationpolicy_binding` |
+| `set authentication OAuthAction a -defaultAuthenticationGroup g` | `authenticationoauthaction` with `"method": "PUT"` |
+
+### Undo keys of the resource types used in the examples
+
+| Resource | Journal / undo |
+|---|---|
+| `sslcipher`, `sslcipher_sslciphersuite_binding` | removed by `ciphergroupname` (+ `ciphername` for the binding) |
+| `sslprofile_sslcipher_binding` | removed by `name` + `ciphername` |
+| `service_lbmonitor_binding` | removed by `name` + `monitor_name` |
+| `aaagroup_authorizationpolicy_binding` | removed by `groupname` + `policy` |
+| `nshttpprofile`, `authorizationpolicy`, `aaagroup` | removed by `name` / `groupname` |
+| `nshostname`, `dnsnameserver`, `ntpserver`, `ntpsync`, `route`, all `"method": "PUT"` and `"action"` steps | `[MANUAL]`, not reversed |
 
 Easiest way to get the exact JSON for an existing object: read it from a configured appliance, e.g. `GET https://<nsip>/nitro/v1/config/vpnvserver/<name>`.
 
@@ -74,7 +95,14 @@ Full parameter list per resource: NITRO API reference → Configuration → *res
 ### Behaviour
 
 - Steps run in file order. Order dependencies yourself (servers → services → vservers → bindings).
-- `Resource already exists` → `[EXISTS]`, the step is skipped, not journaled. Re-running a file is safe.
+- Every add/bind step is looked up first (`GET /nitro/v1/config/<resource>/<key>`; for bindings the entry must
+  match the step's policy/service/certkey/monitor/cipher/... argument). Found → `[EXISTS]  (found before add)`, the
+  step is not sent and not journaled. This matters because NITRO answers some re-adds with **success** instead of
+  `already exists` (seen on 14.1 for `authenticationpolicylabel` and `vpnvserver_*` policy bindings).
+- If the lookup cannot decide (no key field, e.g. `dnsnameserver`, `ntpserver`, `route`), the step is sent and
+  `Resource already exists` → `[EXISTS]` as before. Re-running a file is safe.
+- `-WhatIf` runs the same lookups (read-only), so a dry run shows `[EXISTS]` for what is already there and
+  `What if: ...` only for what would really be created.
 - Existing objects are **not** updated by a plain step. Use `"method": "PUT"` for changes.
 - Deleting a step from a file does **not** delete the object on the NetScaler.
 

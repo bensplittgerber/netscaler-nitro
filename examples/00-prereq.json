@@ -2,6 +2,40 @@
   "nsip": "https://192.0.2.10",
   "steps": [
     {
+      "comment": "Base system: host name, DNS, NTP",
+      "note": "NSIP, netmask and default route come from first boot. DNS must resolve the STA/StoreFront/IdP names used later. NTP sync matters: SAML assertions and OIDC tokens are time checked. All four are [MANUAL] in the journal (undo does not remove them)."
+    },
+    {
+      "resource": "nshostname",
+      "method": "PUT",
+      "data": {
+        "hostname": "ns01"
+      }
+    },
+    {
+      "resource": "dnsnameserver",
+      "data": {
+        "ip": "192.0.2.53"
+      }
+    },
+    {
+      "resource": "dnsnameserver",
+      "data": {
+        "ip": "192.0.2.54"
+      }
+    },
+    {
+      "resource": "ntpserver",
+      "data": {
+        "servername": "ntp.example.org"
+      }
+    },
+    {
+      "resource": "ntpsync",
+      "action": "enable",
+      "data": {}
+    },
+    {
       "comment": "Default SSL profile",
       "note": "A fresh 14.1 VPX has it DISABLED: new SSL vservers then allow SSLv3/TLS1.0/1.1 and no TLS1.3. The CLI asks Y/N, NITRO does not. Cannot be undone (MANUAL) - take a snapshot first."
     },
