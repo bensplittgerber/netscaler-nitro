@@ -221,6 +221,7 @@ $script:NitroKeyByType = @{
     vlan = 'id'; nsip = 'ipaddress'; nsip6 = 'ipv6address'; lbmonitor = 'monitorname'; sslcertkey = 'certkey'
     sslvserver = 'vservername'; sslservice = 'servicename'; servicegroup = 'servicegroupname'
     systemcmdpolicy = 'policyname'; sslprofile = 'name'; route = 'network'; sslcipher = 'ciphergroupname'
+    vpnurl = 'urlname'
 }
 # Fallback order for everything else
 $script:NitroKeys = 'name','servicegroupname','monitorname','certkey','vservername','servicename',

@@ -36,7 +36,7 @@ $state = [hashtable]::Synchronized(@{
     ))
     requests = [System.Collections.ArrayList]::Synchronized([System.Collections.ArrayList]::new())
 })
-$keyOf = @{ authenticationpolicylabel = 'labelname'; sslcipher = 'ciphergroupname' }
+$keyOf = @{ authenticationpolicylabel = 'labelname'; sslcipher = 'ciphergroupname'; vpnurl = 'urlname' }
 
 $tcp = [System.Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0); $tcp.Start()
 $port = $tcp.LocalEndpoint.Port; $tcp.Stop()
@@ -128,6 +128,7 @@ $config = Join-Path $work 'rerun-test.json'
         @{ resource = 'sslcipher';                 data = @{ ciphergroupname = 'cg_test' } }
         @{ resource = 'sslcipher_sslciphersuite_binding'; data = @{ ciphergroupname = 'cg_test'; ciphername = 'TLS1.3-AES256-GCM-SHA384'; cipherpriority = 1 } }
         @{ resource = 'sslprofile_sslcipher_binding'; data = @{ name = 'ssl_prof_test'; ciphername = 'cg_test'; cipherpriority = 1 } }
+        @{ resource = 'vpnurl';                    data = @{ urlname = 'bm_test'; linkname = 'test (RDP)'; actualurl = 'rdp://jump01.example.org' } }
     )
 } | ConvertTo-Json -Depth 10 | Set-Content $config -Encoding utf8
 
@@ -156,7 +157,8 @@ try {
     Assert ($j.Count -eq 1) 'one journal written'
     $entries = @((Get-Content -Raw $j[0].FullName | ConvertFrom-Json).entries)
     $names = @($entries | ForEach-Object { "$($_.resource)|$($_.key)|$($_.args.policyname)$($_.args.ciphername)" })
-    Assert ($entries.Count -eq 6) "6 journal entries (got $($entries.Count): $($names -join '; '))"
+    Assert ($entries.Count -eq 7) "7 journal entries (got $($entries.Count): $($names -join '; '))"
+    Assert ($names -contains 'vpnurl|bm_test|') 'bookmark journaled with key urlname'
     Assert (-not ($names -match '^authenticationpolicylabel\|lbl_test')) 'pre-existing label NOT journaled (F11)'
     Assert (-not ($names -match 'auth_pol_existing')) 'pre-existing label binding NOT journaled (F11)'
     Assert (-not ($names -match '^vpnvserver_vpnsessionpolicy_binding')) 'pre-existing (silent) vserver binding NOT journaled (F11)'
@@ -166,7 +168,7 @@ try {
     $out = Invoke-Quiet { & (Join-Path $work 'Deploy-NsObjects.ps1') -ConfigFile $config -Credential $cred }
     Assert ((Get-Journals).Count -eq 1) 're-run wrote no second journal'
     Assert ($out -match 'No journal written') 're-run says "No journal written"'
-    Assert (([regex]::Matches($out, '\[EXISTS\]')).Count -eq 10) 'all 10 steps [EXISTS]'
+    Assert (([regex]::Matches($out, '\[EXISTS\]')).Count -eq 11) 'all 11 steps [EXISTS]'
 
     Write-Host "`n== 4. undo of the first journal" -ForegroundColor Cyan
     $out = Invoke-Quiet { & (Join-Path $work 'Undo-NsObjects.ps1') -Journal $j[0].FullName -Credential $cred -Confirm:$false }
@@ -175,6 +177,7 @@ try {
     Assert (-not $state.objects.ContainsKey('authenticationpolicy|auth_pol_new')) 'created policy removed'
     Assert (-not $state.objects.ContainsKey('sslcipher|cg_test')) 'created cipher group removed'
     Assert (-not $state.objects.ContainsKey('sslprofile|ssl_prof_test')) 'created SSL profile removed'
+    Assert (-not $state.objects.ContainsKey('vpnurl|bm_test')) 'created bookmark removed'
     Assert ($state.objects.ContainsKey('authenticationpolicylabel|lbl_test')) 'pre-existing label kept'
     $left = @($state.bindings | ForEach-Object { "$($_.resource)|$($_.data.policyname)$($_.data.policy)" })
     Assert ($left -contains 'authenticationpolicylabel_authenticationpolicy_binding|auth_pol_existing') 'pre-existing label binding kept'

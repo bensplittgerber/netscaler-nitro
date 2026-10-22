@@ -16,6 +16,8 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
   (`Cipher group has bound entities`). Such bindings are now removed explicitly before that object.
 - Undo keys for `sslcipher` (`ciphergroupname`) and `ciphername` / `portaltheme` / `urlname` / `lbvserver` as binding
   delete arguments (cipher group, SSL profile cipher, portal theme, bookmark and CS default-LB bindings).
+- `vpnurl` (bookmark) had no key: the step label showed no name, `[EXISTS]` lookup did not work and undo left the
+  bookmark behind (`not reversed automatically: vpnurl (no key found)`). Key is now `urlname`.
 
 ### Added
 - `-WhatIf` uses the same read-only lookups: a dry run shows `[EXISTS]` for what is already there and
