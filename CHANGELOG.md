@@ -2,7 +2,7 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
-## [1.2.0] - unreleased
+## [1.2.0] - 2026-10-23
 
 ### Fixed
 - Re-runs journaled pre-existing objects as created (F11): NetScaler 14.1 answers some re-adds with success instead
