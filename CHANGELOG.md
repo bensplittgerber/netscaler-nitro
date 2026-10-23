@@ -2,6 +2,19 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `scripts/Deploy-NsSite.ps1` + `examples/site.example.json` + `docs/end-to-end.md`: empty ESXi host to a working
+  Gateway in one run, driven by one site file - new VPX with netscaler-vpx-deploy, base files, certificates
+  (`Deploy-NsCertificates.ps1` or waiting for netscaler-acme), object files; key pinned on first contact, all
+  prompts before the first change, `-WhatIf`, `-SkipVpx`, `-From` to resume.
+
+### Planned for the next release
+- Least privilege for `pol_cert_deploy` in `examples/00-prereq.json` (same policy as netscaler-acme): the unused
+  `sync ha files ssl` and `create system backup`, `ssl .*` narrowed to `ssl certKey` / `ssl vserver`, `system file`
+  only in `/nsconfig/ssl` - after a full certificate test (see the netscaler-acme CHANGELOG).
+
 ## [1.3.1] - 2026-11-12
 
 ### Added

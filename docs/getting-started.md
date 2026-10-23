@@ -18,6 +18,9 @@
 
 ## Fresh appliance (14.1 VPX)
 
+No VPX yet? [end-to-end.md](end-to-end.md): `scripts/Deploy-NsSite.ps1` deploys one with netscaler-vpx-deploy and
+then runs the files below in one go.
+
 A new VPX has the **default SSL profile disabled**: every new SSL vserver then allows SSLv3/TLS 1.0/1.1 and no TLS 1.3,
 and SSL profiles cannot be bound. Enable it once before anything else (`examples/00-prereq.json` does it via NITRO,
 without the CLI's Y/N prompt; it cannot be undone):

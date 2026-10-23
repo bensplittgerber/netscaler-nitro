@@ -1,0 +1,78 @@
+# End to end: empty ESXi host to a working Gateway
+
+`scripts/Deploy-NsSite.ps1` runs the whole chain from one **site file**:
+
+```
+Vpx           netscaler-vpx-deploy: OVF import, first-boot network config, nsroot change, CallHome/MBF off
+  -> Base         00-network (optional), 00-prereq: host name, DNS, NTP, default SSL profile, certificate user
+  -> Certificates  files (Deploy-NsCertificates.ps1)  or  netscaler-acme (wait until the certKeys exist)
+  -> Objects       02-lb-storefront, 03-aaa-*, 04-gateway, 05-ssl-hardening, ...
+```
+
+Each phase uses the existing tools; nothing new happens on the NetScaler that the single scripts would not do.
+
+## Requirements
+
+- Everything in [getting-started.md](getting-started.md), plus for the Vpx phase the requirements of
+  **netscaler-vpx-deploy** (Windows, VMware PowerCLI, the VPX OVF on a datastore; see its `docs/vmware.md`).
+- netscaler-vpx-deploy cloned next to this repo (the site file points to its script):
+  ```
+  src/
+  ├── netscaler-nitro/
+  └── netscaler-vpx-deploy/
+  ```
+- Your object files: copy `examples/` and adapt names, addresses and backends (see the README of `examples/`).
+
+## Site file
+
+`examples/site.example.json` (paths relative to the site file):
+
+| Key | Meaning |
+|---|---|
+| `nsip` | management address of the VPX - used for the deploy and every NITRO call |
+| `noProxy` | NITRO and the deploy bypass the system proxy |
+| `vpx.script` | path to `netscaler-vpx-deploy/vmware/Deploy-NsVpx.ps1` |
+| `vpx.parameters` | parameters of `Deploy-NsVpx.ps1` (`EsxHost`, `OvfPath`, `VmName`, `Datastore`, `Gateway`, `Snip`, `DnsServer`, `NicType`, ...); not `Nsip` (comes from `nsip`) |
+| `base` | object files before the certificates (`00-network.json`, `00-prereq.json`) |
+| `certificates.mode` | `files`: `Deploy-NsCertificates.ps1` with `certificates.file`; `acme`: wait for `certificates.certKeys`; `none` |
+| `certificates.certKeys`, `acmeConfigs`, `waitMinutes` | `acme` mode: certKey names acme-ns deploys, config names printed as commands, how long to wait (default 60) |
+| `objects` | object files after the certificates, in order |
+| `secrets` | environment variables the files use (`${env:NAME}`), prompted masked once |
+
+## Run
+
+```powershell
+# dry run: the VPX checks + userdata (ESXi login), and the list of files per phase
+./scripts/Deploy-NsSite.ps1 -SiteFile ./configs/site-a.json -WhatIf
+
+# the real run
+./scripts/Deploy-NsSite.ps1 -SiteFile ./configs/site-a.json
+
+# existing VPX (no Vpx phase), resume at the objects after a fix
+./scripts/Deploy-NsSite.ps1 -SiteFile ./configs/site-a.json -SkipVpx -From Objects -PinnedPublicKey 'sha256//...'
+```
+
+Prompts, all before the first change: the nsroot login for the NITRO phases (the **new** password when the VPX is
+deployed in the same run) and the `secrets`. `Deploy-NsVpx.ps1` then asks for its own passwords (ESXi login, the
+image's default nsroot password, the new one twice). Secrets are removed from the environment at the end; nothing
+is written to disk.
+
+## Trust
+
+After the Vpx phase the self-signed management key is read and pinned (same trust-on-first-use as the deploy, a few
+minutes later on the same path) and used for every NITRO call of the run; the pin is printed at the end. Against an
+existing VPX pass `-PinnedPublicKey`, or nothing if its management certificate is CA-signed and trusted. Replace the
+self-signed certificate afterwards, e.g. with netscaler-acme, and trust the CA instead of a pin.
+
+## Certificates with netscaler-acme
+
+`"mode": "acme"`: after the base phase the script prints the `acme-ns run` commands for the Docker host (first
+deployment from `conf/pending/` with the pin override) and checks every 30 seconds until all `certKeys` exist on the
+NetScaler, then continues with the objects. Ctrl+C stops the wait; continue later with `-SkipVpx -From Objects`.
+
+## Failures
+
+Each phase stops at the first failing file; that file rolls itself back (journal, see
+[rollback-and-undo.md](rollback-and-undo.md)), earlier files stay. Fix the file and resume with `-From` - earlier
+phases are not repeated. A failed Vpx phase keeps the userdata ISO for diagnosis (netscaler-vpx-deploy prints the
+`-Cleanup` command).

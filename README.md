@@ -93,7 +93,8 @@ netscaler-nitro/
 │   ├── Undo-NsObjects.ps1         removes a previous deployment using its journal
 │   ├── Invoke-NsDeployment.ps1    runs several object files in order (one-flow), prompts secrets once
 │   ├── Update-NsFirmware.ps1      firmware upgrade of one node: upload, pre-check, install, reboot, verify
-│   └── Invoke-NsLasLicense.ps1    offline LAS licensing: status of many appliances, request, activation
+│   ├── Invoke-NsLasLicense.ps1    offline LAS licensing: status of many appliances, request, activation
+│   └── Deploy-NsSite.ps1          end to end from one site file: new VPX -> base -> certificates -> objects
 ├── templates/                     all supported patterns, every step disabled ("skip": true)
 │   ├── certs-template.json
 │   └── objects-template.json
@@ -107,7 +108,8 @@ netscaler-nitro/
 │   ├── 04-gateway.json
 │   ├── 05-ssl-hardening.json      cipher group (forward secrecy + AEAD only), strict HTTP profile with WebSocket
 │   ├── 06-callback.json           optional dedicated StoreFront callback vserver
-│   └── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
+│   ├── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
+│   └── site.example.json          site file for Deploy-NsSite.ps1 (VPX parameters + the files above in order)
 ├── tests/
 │   ├── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
 │   ├── Test-NsFirmware.ps1        offline test of the firmware upgrade flow
@@ -122,7 +124,8 @@ netscaler-nitro/
     ├── linux.md
     ├── firmware-upgrade.md
     ├── las-licensing.md
-    └── troubleshooting.md
+    ├── troubleshooting.md
+    └── end-to-end.md
 ```
 
 The files in `scripts/` must stay together: every script loads `NetScalerNitro.psm1` from its own folder.
@@ -144,6 +147,9 @@ The files in `scripts/` must stay together: every script loads `NetScalerNitro.p
 ```
 
 See [docs/getting-started.md](docs/getting-started.md) for requirements, credentials and the full workflow.
+
+No VPX yet? `scripts/Deploy-NsSite.ps1` goes from an empty ESXi host to a working Gateway in one run, together with
+netscaler-vpx-deploy: [docs/end-to-end.md](docs/end-to-end.md).
 
 ## Common switches
 
@@ -170,6 +176,8 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 
 ## Related
 
+- [netscaler-vpx-deploy](https://github.com/bensplittgerber/netscaler-vpx-deploy): unattended NetScaler VPX
+  deployment on VMware ESXi (OVF, first-boot network config, nsroot change) - the Vpx phase of `Deploy-NsSite.ps1`.
 - [netscaler-rdp-proxy-oidc](https://github.com/bensplittgerber/netscaler-rdp-proxy-oidc): complete RDP proxy Gateway
   with Microsoft Entra ID (OIDC) and authorization through an AAA group, deployed with these scripts.
 
@@ -183,6 +191,7 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 - [Offline LAS licensing](docs/las-licensing.md)
 - [Running on Linux](docs/linux.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [End to end: empty ESXi host to a working Gateway](docs/end-to-end.md)
 - [Changelog](CHANGELOG.md)
 
 ## Security notes

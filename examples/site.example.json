@@ -1,0 +1,41 @@
+{
+  "_comment": "Site file for scripts/Deploy-NsSite.ps1 - empty ESXi host to a working Gateway in one run. Paths are relative to this file. See docs/end-to-end.md.",
+
+  "nsip": "192.0.2.10",
+  "noProxy": true,
+
+  "vpx": {
+    "_comment": "Parameters of Deploy-NsVpx.ps1 (netscaler-vpx-deploy, cloned next to netscaler-nitro). Nsip comes from 'nsip' above.",
+    "script": "../../netscaler-vpx-deploy/vmware/Deploy-NsVpx.ps1",
+    "parameters": {
+      "EsxHost": "esx01.example.org",
+      "EsxPinnedPublicKey": "sha256//<ESXi host key, see netscaler-vpx-deploy docs/vmware.md>",
+      "OvfPath": "[datastore1] iso/NSVPX-ESX-14.1-xx.xx_nc_64.ovf",
+      "ExpectBuild": "14.1-xx.xx",
+      "VmName": "ns01",
+      "Datastore": "datastore1",
+      "Network": "VM Network",
+      "Gateway": "192.0.2.1",
+      "Snip": "192.0.2.11",
+      "DnsServer": [ "192.0.2.53" ],
+      "NtpServer": [ "192.0.2.123" ],
+      "NicCount": 1,
+      "NicType": "Vmxnet3"
+    }
+  },
+
+  "base": [ "00-network.json", "00-prereq.json" ],
+
+  "certificates": {
+    "_comment": "mode 'files': Deploy-NsCertificates.ps1 with 'file'. mode 'acme': wait for 'certKeys' deployed by netscaler-acme ('acmeConfigs' are printed as commands). mode 'none': skip.",
+    "mode": "files",
+    "file": "01-certs-example.json",
+    "certKeys": [ "gateway_example_com" ],
+    "acmeConfigs": [ "le-gateway" ],
+    "waitMinutes": 60
+  },
+
+  "objects": [ "02-lb-storefront.json", "03-aaa-oidc-entra.json", "04-gateway.json", "05-ssl-hardening.json" ],
+
+  "secrets": [ "CERT_USER_PW", "OIDC_CLIENT_SECRET" ]
+}
