@@ -10,6 +10,9 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
   (`Deploy-NsCertificates.ps1` or waiting for netscaler-acme), object files; key pinned on first contact, all
   prompts before the first change, the nsroot login proven (asked again on a typo) before the first NITRO phase,
   `-WhatIf`, `-SkipVpx`, `-From` to resume.
+- `examples/00-prereq.json` enables the features the examples need (LB, SSL, SSLVPN, AAA, REWRITE, RESPONDER). A
+  fresh 14.1 VPX has all features off: the vservers were created but did not serve (VIP answers ping, 443 closed) -
+  found with the first end-to-end run on a new VPX.
 - `-NsIp` on `Deploy-NsObjects.ps1`, `Deploy-NsCertificates.ps1` and `Invoke-NsDeployment.ps1`: replaces the `nsip` of
   the file(s), so the same files can be deployed to several appliances; the journal records the address used.
 

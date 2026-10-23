@@ -93,7 +93,11 @@ if ($dryRun) {
 # --- prompts, all before the first change -------------------------------------------------------------------------------
 $cred = Get-Credential nsroot -Message "NetScaler $($site.nsip) - nsroot (the NEW password when the VPX is deployed in this run)"
 $prompted = @()
-foreach ($name in @($site.secrets | Where-Object { $_ })) {
+# only the secrets that the files of the phases in this run reference (${env:NAME})
+$runFiles = @(); if ('Base' -in $run) { $runFiles += $base }; if ('Objects' -in $run) { $runFiles += $objects }
+if ('Certificates' -in $run -and $certMode -eq 'files') { $runFiles += $certFile }
+$used = @($runFiles | ForEach-Object { [regex]::Matches((Get-Content -Raw $_), '\$\{env:([A-Za-z0-9_]+)\}') } | ForEach-Object { $_.Groups[1].Value })
+foreach ($name in @($site.secrets | Where-Object { $_ -and $_ -in $used })) {
     if (-not [Environment]::GetEnvironmentVariable($name)) { Set-Item "Env:$name" (Read-Host $name -MaskInput); $prompted += $name }
 }
 

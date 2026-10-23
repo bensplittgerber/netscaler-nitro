@@ -47,6 +47,17 @@
       }
     },
     {
+      "comment": "Features used by the example files",
+      "note": "A fresh 14.1 VPX has ALL features off: vservers are created but do not serve (VIP answers ping, port 443 stays closed). LB = 02, SSL = all SSL vservers, SSLVPN = 04 Gateway, AAA = 03, REWRITE/RESPONDER = 05/07. [MANUAL] in the journal (undo does not switch them off)."
+    },
+    {
+      "resource": "nsfeature",
+      "action": "enable",
+      "data": {
+        "feature": [ "LB", "SSL", "SSLVPN", "AAA", "REWRITE", "RESPONDER" ]
+      }
+    },
+    {
       "comment": "Least-privilege NITRO user for certificate deployment (e.g. netscaler-acme), no nsroot",
       "note": "Password only via environment: $env:CERT_USER_PW = Read-Host 'password' -MaskInput. The binding is the LAST step on purpose: if anything fails after it, the rollback has least to do."
     },
