@@ -8,7 +8,10 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
 - `scripts/Deploy-NsSite.ps1` + `examples/site.example.json` + `docs/end-to-end.md`: empty ESXi host to a working
   Gateway in one run, driven by one site file - new VPX with netscaler-vpx-deploy, base files, certificates
   (`Deploy-NsCertificates.ps1` or waiting for netscaler-acme), object files; key pinned on first contact, all
-  prompts before the first change, `-WhatIf`, `-SkipVpx`, `-From` to resume.
+  prompts before the first change, the nsroot login proven (asked again on a typo) before the first NITRO phase,
+  `-WhatIf`, `-SkipVpx`, `-From` to resume.
+- `-NsIp` on `Deploy-NsObjects.ps1`, `Deploy-NsCertificates.ps1` and `Invoke-NsDeployment.ps1`: replaces the `nsip` of
+  the file(s), so the same files can be deployed to several appliances; the journal records the address used.
 
 ### Planned for the next release
 - Least privilege for `pol_cert_deploy` in `examples/00-prereq.json` (same policy as netscaler-acme): the unused

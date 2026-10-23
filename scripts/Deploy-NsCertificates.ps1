@@ -32,12 +32,13 @@ param(
     [switch]$Backup,
     [switch]$NoSave,
     [switch]$SyncHaFiles,
-    [switch]$ContinueOnError
+    [switch]$ContinueOnError,
+    [string]$NsIp               # replaces the file's "nsip" (same file for several appliances)
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'NetScalerNitro.psm1') -Force
 
-$loaded = Import-NitroConfig $ConfigFile
+$loaded = Import-NitroConfig $ConfigFile -NsIp $NsIp
 $cfg    = $loaded.Config
 if (-not @($cfg.certificates).Where({ $_ }).Count) {
     $hint = if ($cfg.steps) { " It contains 'steps' - use Deploy-NsObjects.ps1 for this file." } else { '' }

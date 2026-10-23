@@ -40,12 +40,13 @@ param(
     [switch]$Backup,
     [switch]$NoSave,
     [switch]$NoRollback,
-    [switch]$ContinueOnError
+    [switch]$ContinueOnError,
+    [string]$NsIp               # replaces the file's "nsip" (same file for several appliances)
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'NetScalerNitro.psm1') -Force
 
-$cfg = (Import-NitroConfig $ConfigFile).Config
+$cfg = (Import-NitroConfig $ConfigFile -NsIp $NsIp).Config
 if (-not @($cfg.steps).Where({ $_.resource }).Count) {
     $hint = if ($cfg.certificates) { " It contains 'certificates' - use Deploy-NsCertificates.ps1 for this file." } else { '' }
     throw "Config file '$ConfigFile' has no 'steps' with a resource - nothing to do, nothing was changed or saved.$hint"

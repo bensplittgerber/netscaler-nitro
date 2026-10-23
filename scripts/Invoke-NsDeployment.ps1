@@ -27,7 +27,8 @@ param(
     [switch]$SkipCertificateCheck,
     [string]$PinnedPublicKey,
     [switch]$NoProxy,
-    [switch]$NoRollback
+    [switch]$NoRollback,
+    [string]$NsIp               # replaces the "nsip" of every file (same files for several appliances)
 )
 $ErrorActionPreference = 'Stop'
 $deploy = Join-Path $PSScriptRoot 'Deploy-NsObjects.ps1'
@@ -53,7 +54,7 @@ try {
         }
         Write-Host "`n===== [$n/$($ConfigFile.Count)] $(Split-Path -Leaf $f) =====" -ForegroundColor Cyan
         & $deploy -ConfigFile $f -Credential $Credential -SkipCertificateCheck:$SkipCertificateCheck `
-            -PinnedPublicKey $PinnedPublicKey -NoProxy:$NoProxy -NoRollback:$NoRollback -WhatIf:$WhatIfPreference
+            -PinnedPublicKey $PinnedPublicKey -NoProxy:$NoProxy -NoRollback:$NoRollback -NsIp $NsIp -WhatIf:$WhatIfPreference
     }
     Write-Host "`nAll $($ConfigFile.Count) file(s) done." -ForegroundColor Green
 }

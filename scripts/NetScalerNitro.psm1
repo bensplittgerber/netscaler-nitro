@@ -55,8 +55,9 @@ function Get-NitroPin {
 }
 
 function Import-NitroConfig {
-    <# Loads a JSON config and replaces ${env:NAME} placeholders with environment variable values. #>
-    param([Parameter(Mandatory)][string]$Path)
+    <# Loads a JSON config and replaces ${env:NAME} placeholders with environment variable values.
+       -NsIp replaces the file's "nsip" (same files for several appliances; 'https://' is added if missing). #>
+    param([Parameter(Mandatory)][string]$Path, [string]$NsIp)
     $full = (Resolve-Path $Path).Path
     $raw  = Get-Content -Raw $full
     $raw  = [regex]::Replace($raw, '\$\{env:([A-Za-z0-9_]+)\}', {
@@ -69,6 +70,10 @@ function Import-NitroConfig {
     })
     try   { $cfg = $raw | ConvertFrom-Json }
     catch { throw "Config file '$full' is not valid JSON: $($_.Exception.Message)" }
+    if ($NsIp) {
+        if ($NsIp -notmatch '^https?://') { $NsIp = "https://$NsIp" }
+        $cfg | Add-Member -NotePropertyName nsip -NotePropertyValue $NsIp -Force
+    }
     if (-not $cfg.nsip) { throw "Config file '$full' has no ""nsip"" value." }
     [pscustomobject]@{
         Config = $cfg

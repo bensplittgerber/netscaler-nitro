@@ -116,7 +116,8 @@ try {
             $cred = Get-Credential nsroot -Message "NetScaler $($site.nsip) - nsroot"
         }
     }
-    $common = @{ Credential = $cred; NoProxy = [bool]$site.noProxy } + $tls
+    # the site's nsip wins over the "nsip" inside the files (example files can be used as they are)
+    $common = @{ Credential = $cred; NoProxy = [bool]$site.noProxy; NsIp = $nsUrl } + $tls
 
     # --- Base --------------------------------------------------------------------------------------------------------
     if ('Base' -in $run -and $base) {

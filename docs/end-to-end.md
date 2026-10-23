@@ -29,7 +29,7 @@ Each phase uses the existing tools; nothing new happens on the NetScaler that th
 
 | Key | Meaning |
 |---|---|
-| `nsip` | management address of the VPX - used for the deploy and every NITRO call |
+| `nsip` | management address of the VPX - used for the deploy and every NITRO call; it replaces the `nsip` inside the object and certificate files (`-NsIp`), so the same files work for several appliances |
 | `noProxy` | NITRO and the deploy bypass the system proxy |
 | `vpx.script` | path to `netscaler-vpx-deploy/vmware/Deploy-NsVpx.ps1` |
 | `vpx.parameters` | parameters of `Deploy-NsVpx.ps1` (`EsxHost`, `OvfPath`, `VmName`, `Datastore`, `Gateway`, `Snip`, `DnsServer`, `NicType`, ...); not `Nsip` (comes from `nsip`) |
