@@ -70,6 +70,22 @@ self-signed certificate afterwards, e.g. with netscaler-acme, and trust the CA i
 deployment from `conf/pending/` with the pin override) and checks every 30 seconds until all `certKeys` exist on the
 NetScaler, then continues with the objects. Ctrl+C stops the wait; continue later with `-SkipVpx -From Objects`.
 
+## Adapt before the first run
+
+- **SNIP**: backends (StoreFront, IdP, STA) are reached from a SNIP - `vpx.parameters.Snip` (or `00-network.json`).
+  Without one the StoreFront monitor fails and the LB vserver stays DOWN (VIP answers ping, 443 closed).
+- **StoreFront store path**: the examples use the store `Store` (`/Citrix/StoreWeb/`) in the monitor of
+  `02-lb-storefront.json` and in `wihome` of `04-gateway.json`. Another store name (e.g. `/Citrix/DEVWeb/`) has to be
+  changed in both places, otherwise the monitor gets 404 and the LB vserver stays DOWN.
+- **Features**: `00-prereq.json` enables LB, SSL, SSLVPN, AAA, REWRITE, RESPONDER - a fresh VPX has all of them off.
+
+## After the run
+
+- **Cipher hardening** (`05-ssl-hardening.json`): binding the cipher group adds it next to `DEFAULT`; until `DEFAULT`
+  is removed, TLS 1.2 without forward secrecy (e.g. `AES128-SHA`) is still accepted. Remove it once by hand (object
+  files cannot unbind): `unbind ssl profile ssl_prof_frontend_secure -cipherName DEFAULT`, `save ns config`.
+- Management certificate: see Trust above.
+
 ## Failures
 
 Each phase stops at the first failing file; that file rolls itself back (journal, see
