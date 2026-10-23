@@ -107,6 +107,15 @@ try {
         Write-Host "management key pin for this run: $PinnedPublicKey" -ForegroundColor Cyan
     }
     $tls    = if ($PinnedPublicKey) { @{ PinnedPublicKey = $PinnedPublicKey } } else { @{} }
+    # the nsroot password was typed before the VPX existed -> prove it once, ask again on a typo (3 tries)
+    for ($try = 1; $true; $try++) {
+        try { Connect-Nitro -NsIp $nsUrl -Credential $cred -NoProxy:([bool]$site.noProxy) @tls; Disconnect-Nitro; break }
+        catch {
+            if ($_.Exception.Message -notmatch 'Login failed' -or $try -ge 3) { throw }
+            Write-Warning "nsroot login to $($site.nsip) failed ($($_.Exception.Message)) - enter the password again ($try/3)."
+            $cred = Get-Credential nsroot -Message "NetScaler $($site.nsip) - nsroot"
+        }
+    }
     $common = @{ Credential = $cred; NoProxy = [bool]$site.noProxy } + $tls
 
     # --- Base --------------------------------------------------------------------------------------------------------
