@@ -2,6 +2,24 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
+## [1.2.1] - 2026-10-25
+
+### Added
+- README screenshot gallery (`docs/screenshots/`): one-flow deploy, dry run, re-run, certificate add / renew /
+  replace, rollback, undo - real runs on a NetScaler 14.1 lab HA pair, which also verified the 1.2.0 lookups and
+  undo order on a device.
+- MIT license (`LICENSE`).
+
+### Fixed
+- `[EXISTS]` lookup for `sslprofile_sslcipher_binding` did not match on a real NetScaler (found in the 1.2.0 device
+  check on 14.1): GET returns the bound cipher group as `cipheraliasname`, the step uses `ciphername`. A re-run sent
+  the binding anyway (NetScaler refused it, so no journal entry - but `-WhatIf` showed `What if`). The lookup now
+  accepts `cipheraliasname` for `ciphername`; the offline test checks that a re-run sends no add/bind at all.
+
+### Changed
+- `.gitignore` ignores everything in `configs/` except `.gitkeep` (like `certs/`), so real environment configs
+  (IPs, host names) in a clone cannot be committed by accident.
+
 ## [1.2.0] - 2026-10-23
 
 ### Fixed

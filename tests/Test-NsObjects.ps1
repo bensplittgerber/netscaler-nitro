@@ -68,7 +68,14 @@ $server = Start-ThreadJob -ArgumentList $listener, $state, $keyOf -ScriptBlock {
                 'GET' {
                     $parentType = ($res -split '_')[0]
                     if (-not $state.objects.ContainsKey("$parentType|$parentKey")) { $code = 404; $out = @{ errorcode = 258; message = "No such resource [$parentKey]" } }
-                    elseif ($mine.Count) { $out[$res] = @($mine | ForEach-Object { $_.data }) }
+                    elseif ($mine.Count) {
+                        $out[$res] = @($mine | ForEach-Object {
+                            $d = $_.data.Clone()
+                            # like NetScaler 14.1: a profile's cipher group comes back as cipheraliasname, not ciphername
+                            if ($res -eq 'sslprofile_sslcipher_binding') { $d.cipheraliasname = $d.ciphername; $d.Remove('ciphername') }
+                            $d
+                        })
+                    }
                 }
                 'PUT' {
                     $dup = $mine | Where-Object { ($_.data.policyname ?? $_.data.policy ?? $_.data.ciphername) -eq ($data.policyname ?? $data.policy ?? $data.ciphername) }
@@ -165,7 +172,11 @@ try {
     Assert ($names -contains 'sslcipher_sslciphersuite_binding|cg_test|TLS1.3-AES256-GCM-SHA384') 'cipher binding journaled with group key + ciphername'
 
     Write-Host "`n== 3. re-run" -ForegroundColor Cyan
+    $state.requests.Clear()
     $out = Invoke-Quiet { & (Join-Path $work 'Deploy-NsObjects.ps1') -ConfigFile $config -Credential $cred }
+    $sent = @($state.requests | Where-Object { $_ -match '^(POST|PUT) ' -and $_ -notmatch '^POST (login|logout|nsconfig)' })
+    Assert ($sent.Count -eq 0) "re-run sent no add/bind - every lookup matched ($($sent -join '; '))"
+    Assert ($out -notmatch 'already bound|already exists') 're-run [EXISTS] all come from the lookup, not from an error'
     Assert ((Get-Journals).Count -eq 1) 're-run wrote no second journal'
     Assert ($out -match 'No journal written') 're-run says "No journal written"'
     Assert (([regex]::Matches($out, '\[EXISTS\]')).Count -eq 11) 'all 11 steps [EXISTS]'

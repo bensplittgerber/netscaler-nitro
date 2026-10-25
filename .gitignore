@@ -2,6 +2,9 @@
 # Certificate material (keep only the folder)
 certs/*
 !certs/.gitkeep
+# Your real environment configs (IPs, host names) - keep only the folder
+configs/*
+!configs/.gitkeep
 *.key
 *.pfx
 *.p12

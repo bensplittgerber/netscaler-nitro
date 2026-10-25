@@ -230,6 +230,9 @@ $script:NitroKeys = 'name','servicegroupname','monitorname','certkey','vserverna
 $script:NitroBindingArgs = 'policy','policyname','servicename','servername','servicegroupname','port','ip','ipaddress','netmask',
                            'ifnum','certkeyname','staserver','monitor_name','bindpoint','ca','snicert','username','groupname',
                            'ciphername','portaltheme','urlname','lbvserver'
+# Binding fields that GET returns under another name than the add/delete uses (NetScaler 14.1:
+# sslprofile_sslcipher_binding / sslvserver_sslcipher_binding return a cipher group or alias as cipheraliasname)
+$script:NitroGetAliases = @{ ciphername = 'cipheraliasname' }
 
 function Test-NitroExists {
     <# F11: looks up the object or binding of an add/bind step BEFORE it is sent. NITRO answers some adds of an
@@ -257,6 +260,7 @@ function Test-NitroExists {
         $match = $true
         foreach ($k in $ids) {
             $v = $e.$k
+            if ($null -eq $v -and $script:NitroGetAliases[$k]) { $v = $e.($script:NitroGetAliases[$k]) }
             if ($null -eq $v -and $d[$k] -is [bool]) { $v = $false }   # ca / snicert are omitted when false
             if ("$v".TrimEnd('/') -ne "$($d[$k])".TrimEnd('/')) { $match = $false; break }
         }

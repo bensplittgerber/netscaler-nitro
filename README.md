@@ -10,6 +10,67 @@ PowerShell 7 toolset that deploys NetScaler (ADC / Gateway) configuration throug
 
 Tested against NetScaler **14.1** (lab and a production migration).
 
+## Screenshots
+
+Real runs against a NetScaler 14.1 lab VPX (HA pair) with throwaway `*_example_*` objects; host name and management
+key pin are redacted.
+
+<details>
+<summary><b>One flow</b>: deploy two files, journal + undo hint per file</summary>
+
+`.\scripts\Invoke-NsDeployment.ps1 -ConfigFile $files[0..1] @nitro`. The two `[EXISTS]` are cache policies that
+NetScaler binds to every new VPN vserver by itself: found by the lookup, so they stay out of the journal.
+
+![One-flow deployment](docs/screenshots/a-one-flow-deploy.png)
+</details>
+
+<details>
+<summary><b>Dry run</b> (<code>-WhatIf</code>): what exists, what would be created</summary>
+
+Files 11 and 12 are already deployed (`[EXISTS] (found before add)`), only file 13 shows `What if`. Nothing is changed.
+
+![Dry run](docs/screenshots/c-whatif.png)
+</details>
+
+<details>
+<summary><b>Re-run</b>: every step found, nothing journaled</summary>
+
+Safe to re-run: every add/bind is looked up first, and a run that created nothing writes no journal.
+
+![Re-run](docs/screenshots/b-rerun-exists.png)
+</details>
+
+<details>
+<summary><b>Certificates</b>: add, renew in place, replace</summary>
+
+Upload + add certkey + bind:
+
+![Certificate add](docs/screenshots/e1-certs-add.png)
+
+Renewal in place (`"update": true`): same certkey, new files, binding kept:
+
+![Certificate update](docs/screenshots/e2-certs-update.png)
+
+Replace (`"replace": true`): new certkey, old one unbound, new one bound:
+
+![Certificate replace](docs/screenshots/e3-certs-replace.png)
+</details>
+
+<details>
+<summary><b>Rollback</b>: a failing step removes what this run created</summary>
+
+![Failed step and rollback](docs/screenshots/f-failed-rollback.png)
+</details>
+
+<details>
+<summary><b>Undo</b> from a journal</summary>
+
+Reverse order; bindings that go away with their parent object are skipped, a binding that blocks the removal of
+another object (SSL profile cipher group) is removed first.
+
+![Undo](docs/screenshots/d-undo.png)
+</details>
+
 ## Repository layout
 
 ```
@@ -36,7 +97,7 @@ netscaler-nitro/
 │   └── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
 ├── tests/
 │   └── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
-├── configs/                       your real environment configs (no secrets in here!)
+├── configs/                       your real environment configs - ignored by git (no secrets in here!)
 ├── certs/                         certificate/key files - ignored by git
 └── docs/
     ├── getting-started.md
@@ -109,3 +170,7 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 - Use a dedicated NetScaler account instead of `nsroot` for routine runs.
 - `-SkipCertificateCheck` sends the credentials to whoever answers on the NSIP. Prefer `-PinnedPublicKey` (works with the self-signed certificate) or a trusted management certificate. Get the pin with `Get-NitroPin` or `acme-ns pin` and compare it out of band once.
 - Keep management traffic off web proxies (`-NoProxy` or a proxy exception), so credentials never pass an inspecting proxy.
+
+## License
+
+[MIT](LICENSE)
