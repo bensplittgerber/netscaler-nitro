@@ -35,7 +35,8 @@
         "name": "gw_example_com", "policy": "sess_pol_storefront",
         "priority": 100, "gotopriorityexpression": "NEXT", "bindpoint": "REQUEST" } },
 
-    { "comment": "Built-in cache policies" },
+    { "comment": "Built-in cache policies",
+      "note": "NetScaler binds these itself when a VPN or authentication vserver is added, so a deploy reports them as [EXISTS] (found before add). Kept as a check that they are there." },
     { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",
         "policy": "_cacheTCVPNStaticObjects", "priority": 10, "gotopriorityexpression": "END", "bindpoint": "REQUEST" } },
     { "resource": "vpnvserver_cachepolicy_binding", "data": { "name": "gw_example_com",

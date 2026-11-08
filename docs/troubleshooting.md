@@ -91,6 +91,21 @@ show ssl crl crl_client_ca
 `show ssl crl` must say `Status: Valid` and `Last Update: Successful`. Because of this order, CRLs are not part of
 the JSON examples (a NITRO `sslcrl` add with only an HTTP URL ends up in the same `Undefined` state).
 
+## OAuth / OIDC (lessons learned)
+
+After deploying an `authenticationoauthaction`, check on the NetScaler that it could fetch the IdP's signing keys:
+
+```
+show authentication OAuthAction oauth_act_example
+```
+
+| Field | Meaning |
+|---|---|
+| `OAuth Status: COMPLETE` | The certificate endpoint (`certendpoint`, the JWKS URL) was fetched, so ID tokens can be verified |
+| any other status | The NetScaler could not fetch the keys. Check DNS and routing from the NSIP/SNIP to the IdP, then `shell curl -sk -o /dev/null -w "%{http_code}" https://idp.example.org/.well-known/openid-configuration` (expect `200`). A wrong `certendpoint` URL has the same effect |
+
+The output of this command also contains the client secret field, so filter it before sharing the output.
+
 ## SAML (lessons learned)
 
 - The SAML **ACS URL** is `https://<authentication host>/cgi/samlauth`. It is built from the hostname of the login (the authentication profile's `authenticationhost`), not from the SAML action name.

@@ -2,6 +2,16 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- Docs: the built-in cache policies that NetScaler binds by itself (reported as `[EXISTS]`) appear on
+  authentication (AAA) vservers too, not only on VPN vservers (README, note in `examples/04-gateway.json`).
+
+### Added
+- Troubleshooting: "OAuth / OIDC" section. After an `authenticationoauthaction` deploy, `OAuth Status: COMPLETE`
+  means the JWKS endpoint was fetched.
+
 ## [1.2.1] - 2026-10-25
 
 ### Added

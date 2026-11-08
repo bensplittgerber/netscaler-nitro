@@ -19,7 +19,7 @@ key pin are redacted.
 <summary><b>One flow</b>: deploy two files, journal + undo hint per file</summary>
 
 `.\scripts\Invoke-NsDeployment.ps1 -ConfigFile $files[0..1] @nitro`. The two `[EXISTS]` are cache policies that
-NetScaler binds to every new VPN vserver by itself: found by the lookup, so they stay out of the journal.
+NetScaler binds to every new VPN and authentication (AAA) vserver by itself: found by the lookup, so they stay out of the journal.
 
 ![One-flow deployment](docs/screenshots/a-one-flow-deploy.png)
 </details>
