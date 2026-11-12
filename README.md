@@ -71,6 +71,17 @@ another object (SSL profile cipher group) is removed first.
 ![Undo](docs/screenshots/d-undo.png)
 </details>
 
+<details>
+<summary><b>Firmware upgrade</b>: two standalone VPX in parallel, ESXi and KVM</summary>
+
+`.\scripts\Update-NsFirmware.ps1 @fw`, one PowerShell window per node, 14.1-73.49 -> 73.58. The installer restarts
+the web services while it copies files; the script logs in again and follows the job to the end, then reboots and
+waits for the new build. Left: the "unsaved config" flag every node sets at boot, ignored with `-IgnoreUnsavedConfig`.
+Addresses and pins replaced with placeholders. See [docs/firmware-upgrade.md](docs/firmware-upgrade.md).
+
+![Firmware upgrade on ESXi and KVM](docs/screenshots/g-firmware-esxi-kvm.png)
+</details>
+
 ## Repository layout
 
 ```
