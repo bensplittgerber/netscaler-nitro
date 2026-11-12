@@ -92,7 +92,8 @@ netscaler-nitro/
 │   ├── Deploy-NsObjects.ps1       configuration objects (with rollback + journal)
 │   ├── Undo-NsObjects.ps1         removes a previous deployment using its journal
 │   ├── Invoke-NsDeployment.ps1    runs several object files in order (one-flow), prompts secrets once
-│   └── Update-NsFirmware.ps1      firmware upgrade of one node: upload, pre-check, install, reboot, verify
+│   ├── Update-NsFirmware.ps1      firmware upgrade of one node: upload, pre-check, install, reboot, verify
+│   └── Invoke-NsLasLicense.ps1    offline LAS licensing: status of many appliances, request, activation
 ├── templates/                     all supported patterns, every step disabled ("skip": true)
 │   ├── certs-template.json
 │   └── objects-template.json
@@ -109,7 +110,8 @@ netscaler-nitro/
 │   └── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
 ├── tests/
 │   ├── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
-│   └── Test-NsFirmware.ps1        offline test of the firmware upgrade flow
+│   ├── Test-NsFirmware.ps1        offline test of the firmware upgrade flow
+│   └── Test-NsLasLicense.ps1      offline test of the LAS status / request / activation flow
 ├── configs/                       your real environment configs - ignored by git (no secrets in here!)
 ├── certs/                         certificate/key files - ignored by git
 └── docs/
@@ -119,6 +121,7 @@ netscaler-nitro/
     ├── rollback-and-undo.md
     ├── linux.md
     ├── firmware-upgrade.md
+    ├── las-licensing.md
     └── troubleshooting.md
 ```
 
@@ -162,6 +165,7 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 ```powershell
 ./tests/Test-NsObjects.ps1    # no NetScaler needed: fake NITRO API on 127.0.0.1
 ./tests/Test-NsFirmware.ps1   # firmware upgrade flow against a fake NITRO API
+./tests/Test-NsLasLicense.ps1 # LAS licensing (status of several appliances, request, activation)
 ```
 
 ## Related
@@ -176,6 +180,7 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 - [Certificates](docs/certificates.md)
 - [Rollback and undo](docs/rollback-and-undo.md)
 - [Firmware upgrade](docs/firmware-upgrade.md)
+- [Offline LAS licensing](docs/las-licensing.md)
 - [Running on Linux](docs/linux.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Changelog](CHANGELOG.md)

@@ -2,6 +2,22 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- `scripts/Invoke-NsLasLicense.ps1`: offline LAS licensing (Fixed Bandwidth) via NITRO, on the shared module.
+  `-Action Status` (default, read-only) checks `show ns license` + `show ns laslicense` on many appliances
+  (`-NsIp` list, one pin for all or one per appliance), goes on with the next one when an appliance cannot be read,
+  prints a summary table and returns exit code 1 when a license is below `-WarnDays` (default 30; the smaller of
+  the `show ns laslicense` and `show ns license` day counters, which can differ), LAS mode has no
+  active LAS license, or an appliance was not readable; `-PassThru` returns the result objects.
+  `-Action Request` creates the activation request (`-UseHostname`) and downloads it; `-Action Activate` uploads
+  the activation file from Citrix Cloud, applies it with `-fixedBandwidth` and, with `-Reboot`, saves, reboots
+  warm, waits and shows the licensing mode (refuses an HA primary unless `-Force`). Request / Activate work on one
+  appliance at a time and support `-WhatIf` / `-Confirm`. Same NITRO calls as the single-VPX flow in
+  netscaler-vpx-deploy (`-LasRequest` / `-LasActivate`).
+- `tests/Test-NsLasLicense.ps1` (10 cases against a fake NITRO API with several appliances), `docs/las-licensing.md`.
+
 ## [1.3.0] - 2026-11-12
 
 ### Added
