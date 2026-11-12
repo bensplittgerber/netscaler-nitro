@@ -2,7 +2,7 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] - 2026-11-12
 
 ### Added
 - `scripts/Update-NsFirmware.ps1`: firmware upgrade of one node via NITRO. Build onto the node with `scp`
@@ -11,8 +11,10 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
   warning stops the run), async install followed via `nsjob`, NITRO reboot, wait and verify the new build. Keeps
   the old kernel on `/flash` by default (`-DeleteOldKernels` = `answeryestoall`), refuses an HA primary (secondary
   first, then `force ha failover`) and an unsaved running config (`-SaveConfig`, or `-IgnoreUnsavedConfig` = NITRO
-  `ignoreUnsavedConfig`), `-WhatIf` only reads. Verified flow: 14.1-73.46 -> 73.58 on a lab HA pair.
-- `tests/Test-NsFirmware.ps1`, `docs/firmware-upgrade.md`.
+  `ignoreUnsavedConfig`), `-WhatIf` only reads. The job poll logs in again when the installer restarts the web
+  services. Verified 14.1 -> 73.58 on a lab HA pair (manual flow) and with the script on standalone VPX on ESXi
+  and KVM, two nodes in parallel (README screenshot).
+- `tests/Test-NsFirmware.ps1` (11 cases against a fake NITRO API), `docs/firmware-upgrade.md`.
 - Troubleshooting: "OAuth / OIDC" section. After an `authenticationoauthaction` deploy, `OAuth Status: COMPLETE`
   means the JWKS endpoint was fetched.
 
