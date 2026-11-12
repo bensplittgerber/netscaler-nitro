@@ -38,6 +38,7 @@ param(
     [ValidateSet('Vpx', 'Base', 'Certificates', 'Objects')][string]$From = 'Vpx',
     [switch]$SkipVpx,
     [string]$PinnedPublicKey,
+    [pscredential]$Credential,   # nsroot for the NITRO phases; default: prompted (and asked again after a typo)
     [switch]$NoRollback
 )
 $ErrorActionPreference = 'Stop'
@@ -55,7 +56,8 @@ $phases = 'Vpx', 'Base', 'Certificates', 'Objects'
 $run    = @($phases[$phases.IndexOf($From)..3])
 if ($SkipVpx -or -not $site.vpx) { $run = @($run | Where-Object { $_ -ne 'Vpx' }) }
 if (-not $site.nsip) { throw "Site file: 'nsip' (management address of the VPX, e.g. 192.0.2.10) is missing." }
-$nsUrl   = "https://$($site.nsip)"
+# an address (192.0.2.10, ns01.example.org) or a URL with another port (https://192.0.2.10:8443)
+$nsUrl   = if ($site.nsip -match '^https?://') { $site.nsip.TrimEnd('/') } else { "https://$($site.nsip)" }
 $base    = @($site.base    | Where-Object { $_ } | ForEach-Object { Resolve-SitePath $_ })
 $objects = @($site.objects | Where-Object { $_ } | ForEach-Object { Resolve-SitePath $_ })
 foreach ($f in $base + $objects) { if (-not (Test-Path $f)) { throw "Site file: config file not found: $f" } }
@@ -72,7 +74,7 @@ if ('Vpx' -in $run) {
     $vpxScript = Resolve-SitePath $site.vpx.script
     if (-not (Test-Path $vpxScript)) { throw "Site file: vpx.script not found: $vpxScript (clone netscaler-vpx-deploy, see docs/end-to-end.md)." }
     if ($site.vpx.parameters.Nsip) { throw "Site file: set the NSIP once in 'nsip', not in vpx.parameters." }
-    $vpxArgs = @{ Nsip = $site.nsip }
+    $vpxArgs = @{ Nsip = ([uri]$nsUrl).Host }
     $site.vpx.parameters.PSObject.Properties | ForEach-Object { $vpxArgs[$_.Name] = $_.Value }
     if ($site.noProxy) { $vpxArgs.NoProxy = $true }
 }
@@ -91,7 +93,7 @@ if ($dryRun) {
 }
 
 # --- prompts, all before the first change -------------------------------------------------------------------------------
-$cred = Get-Credential nsroot -Message "NetScaler $($site.nsip) - nsroot (the NEW password when the VPX is deployed in this run)"
+$cred = if ($Credential) { $Credential } else { Get-Credential nsroot -Message "NetScaler $($site.nsip) - nsroot (the NEW password when the VPX is deployed in this run)" }
 $prompted = @()
 # only the secrets that the files of the phases in this run reference (${env:NAME})
 $runFiles = @(); if ('Base' -in $run) { $runFiles += $base }; if ('Objects' -in $run) { $runFiles += $objects }
@@ -115,7 +117,7 @@ try {
     for ($try = 1; $true; $try++) {
         try { Connect-Nitro -NsIp $nsUrl -Credential $cred -NoProxy:([bool]$site.noProxy) @tls; Disconnect-Nitro; break }
         catch {
-            if ($_.Exception.Message -notmatch 'Login failed' -or $try -ge 3) { throw }
+            if ($_.Exception.Message -notmatch 'Login failed' -or $try -ge 3 -or $Credential) { throw }
             Write-Warning "nsroot login to $($site.nsip) failed ($($_.Exception.Message)) - enter the password again ($try/3)."
             $cred = Get-Credential nsroot -Message "NetScaler $($site.nsip) - nsroot"
         }

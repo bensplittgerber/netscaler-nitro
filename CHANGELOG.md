@@ -9,7 +9,11 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
   Gateway in one run, driven by one site file - new VPX with netscaler-vpx-deploy, base files, certificates
   (`Deploy-NsCertificates.ps1` or waiting for netscaler-acme), object files; key pinned on first contact, all
   prompts before the first change, the nsroot login proven (asked again on a typo) before the first NITRO phase,
-  `-WhatIf`, `-SkipVpx`, `-From` to resume.
+  `-WhatIf`, `-SkipVpx`, `-From` to resume, `-Credential` for an unattended run; `nsip` may also be a URL with
+  another port.
+- `tests/Test-NsSite.ps1` (7 cases against a fake NITRO API over TLS and a stub of `Deploy-NsVpx.ps1`: dry run,
+  site file checks before any prompt, full run with the key pinned on first contact, `-SkipVpx -From`, wrong pin,
+  wrong login, acme mode).
 - `examples/00-prereq.json` enables the features the examples need (LB, SSL, SSLVPN, AAA, REWRITE, RESPONDER). A
   fresh 14.1 VPX has all features off: the vservers were created but did not serve (VIP answers ping, 443 closed) -
   found with the first end-to-end run on a new VPX.

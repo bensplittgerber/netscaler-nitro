@@ -113,7 +113,8 @@ netscaler-nitro/
 ├── tests/
 │   ├── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
 │   ├── Test-NsFirmware.ps1        offline test of the firmware upgrade flow
-│   └── Test-NsLasLicense.ps1      offline test of the LAS status / request / activation flow
+│   ├── Test-NsLasLicense.ps1      offline test of the LAS status / request / activation flow
+│   └── Test-NsSite.ps1            offline test of the end-to-end site deploy (fake NITRO over TLS, VPX stub)
 ├── configs/                       your real environment configs - ignored by git (no secrets in here!)
 ├── certs/                         certificate/key files - ignored by git
 └── docs/
@@ -172,6 +173,7 @@ netscaler-vpx-deploy: [docs/end-to-end.md](docs/end-to-end.md).
 ./tests/Test-NsObjects.ps1    # no NetScaler needed: fake NITRO API on 127.0.0.1
 ./tests/Test-NsFirmware.ps1   # firmware upgrade flow against a fake NITRO API
 ./tests/Test-NsLasLicense.ps1 # LAS licensing (status of several appliances, request, activation)
+./tests/Test-NsSite.ps1       # end-to-end site deploy: phases, pin on first contact, -From / -SkipVpx
 ```
 
 ## Related

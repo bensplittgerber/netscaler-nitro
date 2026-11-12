@@ -29,7 +29,7 @@ Each phase uses the existing tools; nothing new happens on the NetScaler that th
 
 | Key | Meaning |
 |---|---|
-| `nsip` | management address of the VPX - used for the deploy and every NITRO call; it replaces the `nsip` inside the object and certificate files (`-NsIp`), so the same files work for several appliances |
+| `nsip` | management address of the VPX - used for the deploy and every NITRO call; it replaces the `nsip` inside the object and certificate files (`-NsIp`), so the same files work for several appliances. An address (`192.0.2.10`) or a URL with another port (`https://192.0.2.10:8443`) |
 | `noProxy` | NITRO and the deploy bypass the system proxy |
 | `vpx.script` | path to `netscaler-vpx-deploy/vmware/Deploy-NsVpx.ps1` |
 | `vpx.parameters` | parameters of `Deploy-NsVpx.ps1` (`EsxHost`, `OvfPath`, `VmName`, `Datastore`, `Gateway`, `Snip`, `DnsServer`, `NicType`, ...); not `Nsip` (comes from `nsip`) |
@@ -55,7 +55,9 @@ Each phase uses the existing tools; nothing new happens on the NetScaler that th
 Prompts, all before the first change: the nsroot login for the NITRO phases (the **new** password when the VPX is
 deployed in the same run) and the `secrets`. `Deploy-NsVpx.ps1` then asks for its own passwords (ESXi login, the
 image's default nsroot password, the new one twice). Secrets are removed from the environment at the end; nothing
-is written to disk.
+is written to disk. A secret that is already set in the environment is used as it is and not prompted. For an
+unattended run pass the nsroot login with `-Credential` (a wrong password then stops the run instead of asking
+again).
 
 ## Trust
 
