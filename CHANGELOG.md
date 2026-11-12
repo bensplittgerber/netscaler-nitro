@@ -2,7 +2,7 @@
 
 All notable changes to this project. Format based on [Keep a Changelog](https://keepachangelog.com/), versioning based on [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [1.3.1] - 2026-11-12
 
 ### Added
 - `scripts/Invoke-NsLasLicense.ps1`: offline LAS licensing (Fixed Bandwidth) via NITRO, on the shared module.
