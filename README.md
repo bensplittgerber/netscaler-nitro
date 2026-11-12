@@ -80,7 +80,8 @@ netscaler-nitro/
 │   ├── Deploy-NsCertificates.ps1  certificate deployment
 │   ├── Deploy-NsObjects.ps1       configuration objects (with rollback + journal)
 │   ├── Undo-NsObjects.ps1         removes a previous deployment using its journal
-│   └── Invoke-NsDeployment.ps1    runs several object files in order (one-flow), prompts secrets once
+│   ├── Invoke-NsDeployment.ps1    runs several object files in order (one-flow), prompts secrets once
+│   └── Update-NsFirmware.ps1      firmware upgrade of one node: upload, pre-check, install, reboot, verify
 ├── templates/                     all supported patterns, every step disabled ("skip": true)
 │   ├── certs-template.json
 │   └── objects-template.json
@@ -96,7 +97,8 @@ netscaler-nitro/
 │   ├── 06-callback.json           optional dedicated StoreFront callback vserver
 │   └── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
 ├── tests/
-│   └── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
+│   ├── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
+│   └── Test-NsFirmware.ps1        offline test of the firmware upgrade flow
 ├── configs/                       your real environment configs - ignored by git (no secrets in here!)
 ├── certs/                         certificate/key files - ignored by git
 └── docs/
@@ -105,6 +107,7 @@ netscaler-nitro/
     ├── certificates.md
     ├── rollback-and-undo.md
     ├── linux.md
+    ├── firmware-upgrade.md
     └── troubleshooting.md
 ```
 
@@ -147,6 +150,7 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 
 ```powershell
 ./tests/Test-NsObjects.ps1    # no NetScaler needed: fake NITRO API on 127.0.0.1
+./tests/Test-NsFirmware.ps1   # firmware upgrade flow against a fake NITRO API
 ```
 
 ## Related
@@ -160,6 +164,7 @@ See [docs/getting-started.md](docs/getting-started.md) for requirements, credent
 - [Config file reference](docs/config-reference.md)
 - [Certificates](docs/certificates.md)
 - [Rollback and undo](docs/rollback-and-undo.md)
+- [Firmware upgrade](docs/firmware-upgrade.md)
 - [Running on Linux](docs/linux.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Changelog](CHANGELOG.md)

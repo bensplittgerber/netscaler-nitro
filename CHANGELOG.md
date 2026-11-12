@@ -4,13 +4,21 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+### Added
+- `scripts/Update-NsFirmware.ps1`: firmware upgrade of one node via NITRO. Build onto the node with `scp`
+  (`-BuildFile`, size checked with the `/var/nsinstall` listing) or downloaded by the NetScaler itself
+  (`-BuildUrl`), SHA256 check, system backup, NITRO pre-check (`-PreCheckOnly`; the result file is read, any
+  warning stops the run), async install followed via `nsjob`, NITRO reboot, wait and verify the new build. Keeps
+  the old kernel on `/flash` by default (`-DeleteOldKernels` = `answeryestoall`), refuses an HA primary (secondary
+  first, then `force ha failover`) and an unsaved running config (`-SaveConfig`, or `-IgnoreUnsavedConfig` = NITRO
+  `ignoreUnsavedConfig`), `-WhatIf` only reads. Verified flow: 14.1-73.46 -> 73.58 on a lab HA pair.
+- `tests/Test-NsFirmware.ps1`, `docs/firmware-upgrade.md`.
+- Troubleshooting: "OAuth / OIDC" section. After an `authenticationoauthaction` deploy, `OAuth Status: COMPLETE`
+  means the JWKS endpoint was fetched.
+
 ### Changed
 - Docs: the built-in cache policies that NetScaler binds by itself (reported as `[EXISTS]`) appear on
   authentication (AAA) vservers too, not only on VPN vservers (README, note in `examples/04-gateway.json`).
-
-### Added
-- Troubleshooting: "OAuth / OIDC" section. After an `authenticationoauthaction` deploy, `OAuth Status: COMPLETE`
-  means the JWKS endpoint was fetched.
 
 ## [1.2.1] - 2026-10-25
 
