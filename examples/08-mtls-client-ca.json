@@ -5,18 +5,21 @@
     { "comment": "OPTIONAL: client certificates (mTLS) on the Gateway - certificate Mandatory, two client CA chains trusted, CRL check Mandatory on each issuing CA",
       "note": "EXAMPLE policy only, to show the automation - adapt CAs, CRL URLs, Mandatory/Optional and the authentication flow to your own design. Run after 01-certs-client-ca.json and 04-gateway.json (05 optional). Every client then needs a certificate from one of the bound CAs; a revoked one (or an expired / unreachable CRL) is refused." },
 
-    { "comment": "CRLs: created from the uploaded first copy, then switched to HTTP refresh",
+    { "comment": "CRLs: created from the uploaded first copy, then switched to HTTP refresh and refreshed once",
       "note": "14.1 does not build the first copy from the URL (Status Undefined) - see docs/troubleshooting.md. The crlpath is a file name in the default CRL directory /var/netscaler/ssl (01-certs-client-ca.json uploads it there); a path outside it is refused with 1650." },
     { "resource": "sslcrl", "data": {
         "crlname": "crl_client_ca", "crlpath": "client_ca.crl", "inform": "DER", "cacert": "client_ca_issuing" } },
     { "resource": "sslcrl", "method": "PUT", "data": {
         "crlname": "crl_client_ca", "refresh": "ENABLED", "method": "HTTP", "url": "http://pki.example.org/client/crl",
         "port": 80, "interval": "DAILY", "time": "03:00" } },
+    { "resource": "sslcrl", "method": "PUT", "data": { "crlname": "crl_client_ca", "interval": "NOW" },
+      "note": "One refresh right away (= set ssl crl ... -interval NOW): until then the CRL stays Undefined and a Mandatory CRL check refuses every client. The DAILY schedule stays." },
     { "resource": "sslcrl", "data": {
         "crlname": "crl_partner_ca", "crlpath": "partner_ca.crl", "inform": "DER", "cacert": "partner_ca_issuing" } },
     { "resource": "sslcrl", "method": "PUT", "data": {
         "crlname": "crl_partner_ca", "refresh": "ENABLED", "method": "HTTP", "url": "http://pki.example.org/partner/crl",
         "port": 80, "interval": "DAILY", "time": "03:05" } },
+    { "resource": "sslcrl", "method": "PUT", "data": { "crlname": "crl_partner_ca", "interval": "NOW" } },
 
     { "comment": "SSL profile for the Gateway: like ssl_prof_frontend_secure plus client authentication",
       "note": "A separate profile: ssl_prof_frontend_secure is also used by the callback vserver (06), which must not ask for a client certificate. clientauthuseboundcachain: only the CA chains bound to the vserver are accepted." },
