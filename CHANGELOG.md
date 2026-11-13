@@ -10,7 +10,9 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
   (`Deploy-NsCertificates.ps1` or waiting for netscaler-acme), object files; key pinned on first contact, all
   prompts before the first change, the nsroot login proven (asked again on a typo) before the first NITRO phase,
   `-WhatIf`, `-SkipVpx`, `-From` to resume, `-Credential` for an unattended run; `nsip` may also be a URL with
-  another port.
+  another port. Validated end to end on an empty lab ESXi host with a new VPX (14.1-73.58): Vpx -> Base ->
+  Certificates (files, incl. client CA chains and CRL first copies) -> StoreFront LB -> Gateway -> SSL hardening ->
+  mTLS (3 client CA chains, CRLs Valid); a re-run of the objects found every object before add.
 - `tests/Test-NsSite.ps1` (8 cases against a fake NITRO API over TLS and a stub of `Deploy-NsVpx.ps1`: dry run,
   site file checks before any prompt, full run with the key pinned on first contact, certificate file list +
   `files` upload, `-SkipVpx -From`, wrong pin, wrong login, acme mode).
