@@ -193,11 +193,11 @@ try {
     Reset-Fake
     [IO.File]::WriteAllBytes((Join-Path $work 'ca.crl'), [byte[]](48, 130, 1, 0))
     Set-Content (Join-Path $work 'ca.crt') $cert.ExportCertificatePem()
-    Write-Json 'certs-ca.json' @{ nsip = $fileNsip; files = @('ca.crl'); certificates = @(@{ name = 'ca_root'; certFile = 'ca.crt' }) } | Out-Null
-    Write-Json 'crl.json' @{ nsip = $fileNsip; steps = @(@{ resource = 'sslcrl'; data = @{ crlname = 'crl_ca'; crlpath = '/nsconfig/ssl/ca.crl'; inform = 'DER'; cacert = 'ca_root' } }) } | Out-Null
+    Write-Json 'certs-ca.json' @{ nsip = $fileNsip; files = @(@{ file = 'ca.crl'; location = '/var/netscaler/ssl' }); certificates = @(@{ name = 'ca_root'; certFile = 'ca.crt' }) } | Out-Null
+    Write-Json 'crl.json' @{ nsip = $fileNsip; steps = @(@{ resource = 'sslcrl'; data = @{ crlname = 'crl_ca'; crlpath = 'ca.crl'; inform = 'DER'; cacert = 'ca_root' } }) } | Out-Null
     $r = Invoke-Site @{ SiteFile = (New-Site 'site-list.json' @{ certificates = @{ mode = 'files'; file = @('certs.json', 'certs-ca.json') }; objects = @('crl.json') })
                         Credential = $good; SkipVpx = $true; PinnedPublicKey = $pin }
-    $iCrlFile = Get-Index '^POST systemfile .*"filename":"ca\.crl"'; $iCa = Get-Index '^POST sslcertkey .*ca_root'; $iSite = Get-Index '^POST sslcertkey .*site_cert'
+    $iCrlFile = Get-Index '^POST systemfile .*"filename":"ca\.crl".*"filelocation":"/var/netscaler/ssl"|^POST systemfile .*"filelocation":"/var/netscaler/ssl".*"filename":"ca\.crl"'; $iCa = Get-Index '^POST sslcertkey .*ca_root'; $iSite = Get-Index '^POST sslcertkey .*site_cert'
     Assert (-not $r.Error) "no error ($($r.Error))"
     Assert ($iSite -ge 0 -and $iCrlFile -gt $iSite -and $iCa -gt $iCrlFile) "both certificate files, 'files' uploaded before their certificates ($iSite, $iCrlFile, $iCa)"
     Assert ($r.Out -match 'crl_ca') 'sslcrl step labelled with its crlname'

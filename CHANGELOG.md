@@ -22,7 +22,7 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
 - `examples/08-mtls-client-ca.json` + `examples/01-certs-client-ca.json` (optional): client certificates on the
   Gateway - certificate Mandatory, two client CA chains (root + issuing), CRL check Mandatory, CRLs created from an
   uploaded first copy and then refreshed over HTTP. An example policy to show the automation.
-- `Deploy-NsCertificates.ps1`: optional `files` list - more files for `/nsconfig/ssl` (e.g. the first copy of a CRL),
+- `Deploy-NsCertificates.ps1`: optional `files` list - more files (default `/nsconfig/ssl`, per file `location`, e.g. the first copy of a CRL into `/var/netscaler/ssl`),
   uploaded before the certificates and always overwritten. `certificates.file` of a site file may be a list.
 - `sslcrl` keyed by `crlname` (step label, lookup before add, undo).
 

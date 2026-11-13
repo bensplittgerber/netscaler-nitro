@@ -12,8 +12,8 @@
       4. binds it to existing vservers ("bindTo": LB, Gateway, AAA, CS ... any SSL vserver)
          - with "replace": true the currently bound server cert is unbound first
            (re-bound automatically if the new bind fails)
-    "files" (optional): more files uploaded to /nsconfig/ssl before the certificates, always overwritten - e.g. the
-    first copy of a CRL (see examples/08-mtls-client-ca.json).
+    "files" (optional): more files uploaded before the certificates, always overwritten - a path (to /nsconfig/ssl)
+    or { "file": "...", "location": "/var/netscaler/ssl" }, e.g. the first copy of a CRL (examples/08-mtls-client-ca.json).
 
     Run this BEFORE Deploy-NsObjects.ps1 for new deployments (the objects can then bind the certkey by name),
     or on its own for renewals.
@@ -49,22 +49,22 @@ if (-not @($cfg.certificates).Where({ $_ }).Count -and -not @($cfg.files).Where(
 if (-not $Credential) { $Credential = Get-Credential -Message 'NetScaler NITRO login' }
 $sslDir = '/nsconfig/ssl'
 
-function Send-NsFile([string]$LocalPath, [bool]$Overwrite) {
+function Send-NsFile([string]$LocalPath, [bool]$Overwrite, [string]$Location = $sslDir) {
     $full = if ([IO.Path]::IsPathRooted($LocalPath)) { $LocalPath } else { Join-Path $loaded.Dir $LocalPath }
     if (-not (Test-Path $full)) { throw "File not found: $full" }
     $name  = Split-Path -Leaf $full
-    $label = "upload $name -> $sslDir"
+    $label = "upload $name -> $Location"
     if (-not $PSCmdlet.ShouldProcess($label, 'POST systemfile')) { return $name }
 
     $body = @{ systemfile = @{
         filename     = $name
-        filelocation = $sslDir
+        filelocation = $Location
         filecontent  = [Convert]::ToBase64String([IO.File]::ReadAllBytes($full))
         fileencoding = 'BASE64'
     } }
     $r = Invoke-Nitro -Method POST -Resource 'systemfile' -Body $body
     if ($r.ErrorCode -ne 0 -and $r.Message -match 'exist' -and $Overwrite) {
-        $args = 'filelocation:' + [uri]::EscapeDataString($sslDir)
+        $args = 'filelocation:' + [uri]::EscapeDataString($Location)
         [void](Invoke-Nitro -Method DELETE -Resource "systemfile/$name" -Query @{ args = $args })
         $r = Invoke-Nitro -Method POST -Resource 'systemfile' -Body $body
         $label += ' (overwritten)'
@@ -131,10 +131,15 @@ Connect-Nitro -NsIp $cfg.nsip -Credential $Credential -SkipCertificateCheck:$Ski
 try {
     if ($Backup -and $PSCmdlet.ShouldProcess('system backup', 'create')) { [void](New-NitroBackup) }
 
-    # other files for /nsconfig/ssl, e.g. the first copy of a CRL (14.1 does not build it from the HTTP URL);
+    # other files, e.g. the first copy of a CRL (14.1 does not build it from the HTTP URL);
     # always overwritten, so a re-run brings a newer copy
     if (@($cfg.files).Where({ $_ }).Count) { Write-Host "`n# files" -ForegroundColor Cyan }
-    foreach ($f in @($cfg.files | Where-Object { $_ })) { [void](Send-NsFile $f $true) }
+    # an entry is a path (-> /nsconfig/ssl) or { "file": ..., "location": ... }; a CRL must go to /var/netscaler/ssl,
+    # the default CRL directory (14.1 refuses a crlpath outside it: 1650)
+    foreach ($f in @($cfg.files | Where-Object { $_ })) {
+        if ($f -is [string]) { [void](Send-NsFile $f $true) }
+        else { [void](Send-NsFile $f.file $true $(if ($f.location) { $f.location } else { $sslDir })) }
+    }
 
     foreach ($c in @($cfg.certificates | Where-Object { $_ })) {
         Write-Host "`n# $($c.name)" -ForegroundColor Cyan

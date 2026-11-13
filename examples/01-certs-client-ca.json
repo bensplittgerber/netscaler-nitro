@@ -1,10 +1,10 @@
 {
-  "_comment": "OPTIONAL, for 08-mtls-client-ca.json. Client CA chains the Gateway trusts for client certificates (root + issuing per CA) and the first copy of each CA's CRL (DER, as downloaded from the CRL URL). Deploy with Deploy-NsCertificates.ps1, or list it after 01-certs-example.json in certificates.file of a site file.",
+  "_comment": "OPTIONAL, for 08-mtls-client-ca.json. Client CA chains the Gateway trusts for client certificates (root + issuing per CA) and the first copy of each CA's CRL (DER, as downloaded from the CRL URL) into /var/netscaler/ssl, the default CRL directory. Deploy with Deploy-NsCertificates.ps1, or list it after 01-certs-example.json in certificates.file of a site file.",
   "nsip": "https://192.0.2.10",
 
   "files": [
-    "../certs/client_ca.crl",
-    "../certs/partner_ca.crl"
+    { "file": "../certs/client_ca.crl",  "location": "/var/netscaler/ssl" },
+    { "file": "../certs/partner_ca.crl", "location": "/var/netscaler/ssl" }
   ],
 
   "certificates": [
