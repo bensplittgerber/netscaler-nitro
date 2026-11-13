@@ -34,7 +34,7 @@ Each phase uses the existing tools; nothing new happens on the NetScaler that th
 | `vpx.script` | path to `netscaler-vpx-deploy/vmware/Deploy-NsVpx.ps1` |
 | `vpx.parameters` | parameters of `Deploy-NsVpx.ps1` (`EsxHost`, `OvfPath`, `VmName`, `Datastore`, `Gateway`, `Snip`, `DnsServer`, `NicType`, ...); not `Nsip` (comes from `nsip`) |
 | `base` | object files before the certificates (`00-network.json`, `00-prereq.json`) |
-| `certificates.mode` | `files`: `Deploy-NsCertificates.ps1` with `certificates.file`; `acme`: wait for `certificates.certKeys`; `none` |
+| `certificates.mode` | `files`: `Deploy-NsCertificates.ps1` with `certificates.file` (one file or a list, e.g. `01-certs-example.json` + `01-certs-client-ca.json` for the optional mTLS file `08-mtls-client-ca.json`); `acme`: wait for `certificates.certKeys`; `none` |
 | `certificates.certKeys`, `acmeConfigs`, `waitMinutes` | `acme` mode: certKey names acme-ns deploys, config names printed as commands, how long to wait (default 60) |
 | `objects` | object files after the certificates, in order |
 | `secrets` | environment variables the files use (`${env:NAME}`), prompted masked once |

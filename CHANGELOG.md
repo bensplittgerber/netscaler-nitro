@@ -11,19 +11,24 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
   prompts before the first change, the nsroot login proven (asked again on a typo) before the first NITRO phase,
   `-WhatIf`, `-SkipVpx`, `-From` to resume, `-Credential` for an unattended run; `nsip` may also be a URL with
   another port.
-- `tests/Test-NsSite.ps1` (7 cases against a fake NITRO API over TLS and a stub of `Deploy-NsVpx.ps1`: dry run,
-  site file checks before any prompt, full run with the key pinned on first contact, `-SkipVpx -From`, wrong pin,
-  wrong login, acme mode).
+- `tests/Test-NsSite.ps1` (8 cases against a fake NITRO API over TLS and a stub of `Deploy-NsVpx.ps1`: dry run,
+  site file checks before any prompt, full run with the key pinned on first contact, certificate file list +
+  `files` upload, `-SkipVpx -From`, wrong pin, wrong login, acme mode).
 - `examples/00-prereq.json` enables the features the examples need (LB, SSL, SSLVPN, AAA, REWRITE, RESPONDER). A
   fresh 14.1 VPX has all features off: the vservers were created but did not serve (VIP answers ping, 443 closed) -
   found with the first end-to-end run on a new VPX.
 - `-NsIp` on `Deploy-NsObjects.ps1`, `Deploy-NsCertificates.ps1` and `Invoke-NsDeployment.ps1`: replaces the `nsip` of
   the file(s), so the same files can be deployed to several appliances; the journal records the address used.
+- `examples/08-mtls-client-ca.json` + `examples/01-certs-client-ca.json` (optional): client certificates on the
+  Gateway - certificate Mandatory, two client CA chains (root + issuing), CRL check Mandatory, CRLs created from an
+  uploaded first copy and then refreshed over HTTP. An example policy to show the automation.
+- `Deploy-NsCertificates.ps1`: optional `files` list - more files for `/nsconfig/ssl` (e.g. the first copy of a CRL),
+  uploaded before the certificates and always overwritten. `certificates.file` of a site file may be a list.
+- `sslcrl` keyed by `crlname` (step label, lookup before add, undo).
 
-### Planned for the next release
-- Least privilege for `pol_cert_deploy` in `examples/00-prereq.json` (same policy as netscaler-acme): the unused
-  `sync ha files ssl` and `create system backup`, `ssl .*` narrowed to `ssl certKey` / `ssl vserver`, `system file`
-  only in `/nsconfig/ssl` - after a full certificate test (see the netscaler-acme CHANGELOG).
+### Changed
+- `examples/00-prereq.json`: `pol_cert_deploy` is marked as an example policy only (narrow it to what your
+  certificate tool runs).
 
 ## [1.3.1] - 2026-11-12
 

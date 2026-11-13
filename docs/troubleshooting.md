@@ -88,8 +88,10 @@ save ns config
 show ssl crl crl_client_ca
 ```
 
-`show ssl crl` must say `Status: Valid` and `Last Update: Successful`. Because of this order, CRLs are not part of
-the JSON examples (a NITRO `sslcrl` add with only an HTTP URL ends up in the same `Undefined` state).
+`show ssl crl` must say `Status: Valid` and `Last Update: Successful`. A NITRO `sslcrl` add with only an HTTP URL ends up in
+the same `Undefined` state. The JSON route follows the same order: upload the first copy with the `files` list of a
+certificate file (`examples/01-certs-client-ca.json`, goes to `/nsconfig/ssl`), add the CRL with that absolute path,
+then switch on the HTTP refresh (`examples/08-mtls-client-ca.json`).
 
 ## OAuth / OIDC (lessons learned)
 

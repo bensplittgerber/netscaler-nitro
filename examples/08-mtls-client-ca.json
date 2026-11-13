@@ -1,0 +1,44 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "steps": [
+    { "comment": "OPTIONAL: client certificates (mTLS) on the Gateway - certificate Mandatory, two client CA chains trusted, CRL check Mandatory on each issuing CA",
+      "note": "EXAMPLE policy only, to show the automation - adapt CAs, CRL URLs, Mandatory/Optional and the authentication flow to your own design. Run after 01-certs-client-ca.json and 04-gateway.json (05 optional). Every client then needs a certificate from one of the bound CAs; a revoked one (or an expired / unreachable CRL) is refused." },
+
+    { "comment": "CRLs: created from the uploaded first copy (absolute path), then switched to HTTP refresh",
+      "note": "14.1 does not build the first copy from the URL (Status Undefined) - see docs/troubleshooting.md. A relative crlpath would point to /var/netscaler/ssl, the upload goes to /nsconfig/ssl." },
+    { "resource": "sslcrl", "data": {
+        "crlname": "crl_client_ca", "crlpath": "/nsconfig/ssl/client_ca.crl", "inform": "DER", "cacert": "client_ca_issuing" } },
+    { "resource": "sslcrl", "method": "PUT", "data": {
+        "crlname": "crl_client_ca", "refresh": "ENABLED", "method": "HTTP", "url": "http://pki.example.org/client/crl",
+        "port": 80, "interval": "DAILY", "time": "03:00" } },
+    { "resource": "sslcrl", "data": {
+        "crlname": "crl_partner_ca", "crlpath": "/nsconfig/ssl/partner_ca.crl", "inform": "DER", "cacert": "partner_ca_issuing" } },
+    { "resource": "sslcrl", "method": "PUT", "data": {
+        "crlname": "crl_partner_ca", "refresh": "ENABLED", "method": "HTTP", "url": "http://pki.example.org/partner/crl",
+        "port": 80, "interval": "DAILY", "time": "03:05" } },
+
+    { "comment": "SSL profile for the Gateway: like ssl_prof_frontend_secure plus client authentication",
+      "note": "A separate profile: ssl_prof_frontend_secure is also used by the callback vserver (06), which must not ask for a client certificate. clientauthuseboundcachain: only the CA chains bound to the vserver are accepted." },
+    { "resource": "sslprofile", "data": {
+        "name": "ssl_prof_frontend_mtls",
+        "sessreuse": "ENABLED", "sesstimeout": 120,
+        "tls1": "DISABLED", "tls11": "DISABLED", "tls13": "ENABLED",
+        "denysslreneg": "NONSECURE",
+        "hsts": "ENABLED", "maxage": 15552000, "includesubdomains": "NO", "preload": "NO",
+        "clientauth": "ENABLED", "clientcert": "Mandatory", "clientauthuseboundcachain": "ENABLED" } },
+    { "resource": "sslvserver", "method": "PUT", "data": {
+        "vservername": "gw_example_com", "sslprofile": "ssl_prof_frontend_mtls" },
+      "note": "MANUAL in the journal. Before an undo of this file: set ssl vserver gw_example_com -sslProfile ssl_prof_frontend_secure (a profile in use cannot be removed)." },
+
+    { "comment": "Trusted client CA chains: root (OCSP optional) + issuing (CRL Mandatory) per CA" },
+    { "resource": "sslvserver_sslcertkey_binding", "data": {
+        "vservername": "gw_example_com", "certkeyname": "client_ca_root", "ca": true, "ocspcheck": "Optional" } },
+    { "resource": "sslvserver_sslcertkey_binding", "data": {
+        "vservername": "gw_example_com", "certkeyname": "client_ca_issuing", "ca": true, "crlcheck": "Mandatory" } },
+    { "resource": "sslvserver_sslcertkey_binding", "data": {
+        "vservername": "gw_example_com", "certkeyname": "partner_ca_root", "ca": true, "ocspcheck": "Optional" } },
+    { "resource": "sslvserver_sslcertkey_binding", "data": {
+        "vservername": "gw_example_com", "certkeyname": "partner_ca_issuing", "ca": true, "crlcheck": "Mandatory" } }
+  ]
+}

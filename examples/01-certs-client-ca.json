@@ -1,0 +1,16 @@
+{
+  "_comment": "OPTIONAL, for 08-mtls-client-ca.json. Client CA chains the Gateway trusts for client certificates (root + issuing per CA) and the first copy of each CA's CRL (DER, as downloaded from the CRL URL). Deploy with Deploy-NsCertificates.ps1, or list it after 01-certs-example.json in certificates.file of a site file.",
+  "nsip": "https://192.0.2.10",
+
+  "files": [
+    "../certs/client_ca.crl",
+    "../certs/partner_ca.crl"
+  ],
+
+  "certificates": [
+    { "name": "client_ca_root",     "certFile": "../certs/client-ca-root.crt" },
+    { "name": "client_ca_issuing",  "certFile": "../certs/client-ca-issuing.crt",  "linkTo": "client_ca_root" },
+    { "name": "partner_ca_root",    "certFile": "../certs/partner-ca-root.crt" },
+    { "name": "partner_ca_issuing", "certFile": "../certs/partner-ca-issuing.crt", "linkTo": "partner_ca_root" }
+  ]
+}

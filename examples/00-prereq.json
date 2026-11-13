@@ -59,7 +59,7 @@
     },
     {
       "comment": "Least-privilege NITRO user for certificate deployment (e.g. netscaler-acme), no nsroot",
-      "note": "Password only via environment: $env:CERT_USER_PW = Read-Host 'password' -MaskInput. The binding is the LAST step on purpose: if anything fails after it, the rollback has least to do."
+      "note": "EXAMPLE policy only (shows the automation, not a hardened policy) - narrow the cmdspec to what your certificate tool really runs. Password only via environment: $env:CERT_USER_PW = Read-Host 'password' -MaskInput. The binding is the LAST step on purpose: if anything fails after it, the rollback has least to do."
     },
     {
       "resource": "systemcmdpolicy",

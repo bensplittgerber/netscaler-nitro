@@ -13,6 +13,7 @@
       2. site file errors stop before any prompt
       3. full run: stub called with Nsip + parameters, key pinned, Base -> Certificates -> Objects in order, all on
          the site's nsip, only the secrets the files use
+      3b. certificates.file as a list, the 'files' upload before the certificates, sslcrl journaled by crlname
       4. -SkipVpx -From Objects -PinnedPublicKey: only the object files, no stub
       5. wrong pin: stopped before the login
       6. wrong -Credential: stopped at the login check, nothing written
@@ -187,6 +188,21 @@ try {
     Assert ($env:TEST_SITE_SECRET -eq 'site-secret-value') 'a secret set before the run is kept'
     Assert ($r.Out -notmatch '192\.0\.2\.10') 'nsip of the files never used'
     Assert ($r.Out -match 'Site site\.json done: Vpx -> Base -> Certificates -> Objects') 'all four phases done'
+
+    Write-Host "`n== 3b. certificates.file as a list, 'files' upload, sslcrl keyed by crlname" -ForegroundColor Cyan
+    Reset-Fake
+    [IO.File]::WriteAllBytes((Join-Path $work 'ca.crl'), [byte[]](48, 130, 1, 0))
+    Set-Content (Join-Path $work 'ca.crt') $cert.ExportCertificatePem()
+    Write-Json 'certs-ca.json' @{ nsip = $fileNsip; files = @('ca.crl'); certificates = @(@{ name = 'ca_root'; certFile = 'ca.crt' }) } | Out-Null
+    Write-Json 'crl.json' @{ nsip = $fileNsip; steps = @(@{ resource = 'sslcrl'; data = @{ crlname = 'crl_ca'; crlpath = '/nsconfig/ssl/ca.crl'; inform = 'DER'; cacert = 'ca_root' } }) } | Out-Null
+    $r = Invoke-Site @{ SiteFile = (New-Site 'site-list.json' @{ certificates = @{ mode = 'files'; file = @('certs.json', 'certs-ca.json') }; objects = @('crl.json') })
+                        Credential = $good; SkipVpx = $true; PinnedPublicKey = $pin }
+    $iCrlFile = Get-Index '^POST systemfile .*"filename":"ca\.crl"'; $iCa = Get-Index '^POST sslcertkey .*ca_root'; $iSite = Get-Index '^POST sslcertkey .*site_cert'
+    Assert (-not $r.Error) "no error ($($r.Error))"
+    Assert ($iSite -ge 0 -and $iCrlFile -gt $iSite -and $iCa -gt $iCrlFile) "both certificate files, 'files' uploaded before their certificates ($iSite, $iCrlFile, $iCa)"
+    Assert ($r.Out -match 'crl_ca') 'sslcrl step labelled with its crlname'
+    $journal = Get-ChildItem (Join-Path $work 'journals') -Filter 'crl-*' -ErrorAction SilentlyContinue | Select-Object -First 1
+    Assert ($journal -and (Get-Content -Raw $journal.FullName) -match '"key":\s*"crl_ca"') 'journal can undo the CRL by crlname'
 
     Write-Host "`n== 4. -SkipVpx -From Objects" -ForegroundColor Cyan
     Reset-Fake

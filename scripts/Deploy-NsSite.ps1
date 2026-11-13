@@ -10,7 +10,7 @@
                    OVF import, first-boot userdata, forced nsroot change, CallHome / MBF off, ISO removed.
                    Skipped with -SkipVpx (existing VPX) or when the site file has no "vpx" section.
       Base         Invoke-NsDeployment.ps1 with the "base" files (00-prereq, optional 00-network).
-      Certificates "mode": "files" -> Deploy-NsCertificates.ps1 with the certificate file (unattended);
+      Certificates "mode": "files" -> Deploy-NsCertificates.ps1 with the certificate file(s) (unattended);
                    "mode": "acme"  -> pauses, prints the netscaler-acme commands for the Docker host and waits until
                    the listed certKeys exist on the NetScaler (acme-ns uploads them).
       Objects      Invoke-NsDeployment.ps1 with the "objects" files (LB, AAA, Gateway, ...).
@@ -63,8 +63,9 @@ $objects = @($site.objects | Where-Object { $_ } | ForEach-Object { Resolve-Site
 foreach ($f in $base + $objects) { if (-not (Test-Path $f)) { throw "Site file: config file not found: $f" } }
 $certMode = if ($site.certificates) { $site.certificates.mode } else { 'none' }
 switch ($certMode) {
-    'files' { $certFile = Resolve-SitePath $site.certificates.file
-              if (-not (Test-Path $certFile)) { throw "Site file: certificate file not found: $certFile" } }
+    'files' { $certFile = @($site.certificates.file | Where-Object { $_ } | ForEach-Object { Resolve-SitePath $_ })   # one file or a list
+              if (-not $certFile) { throw "Site file: certificates.mode 'files' needs 'file'." }
+              foreach ($f in $certFile) { if (-not (Test-Path $f)) { throw "Site file: certificate file not found: $f" } } }
     'acme'  { if (-not $site.certificates.certKeys) { throw "Site file: certificates.mode 'acme' needs 'certKeys' (the names acme-ns deploys)." } }
     'none'  { }
     default { throw "Site file: certificates.mode must be 'files', 'acme' or 'none' (is '$certMode')." }
@@ -84,7 +85,7 @@ if ($dryRun) {
     if ('Vpx' -in $run) { & $vpxScript @vpxArgs -WhatIf }
     if ('Base' -in $run) { Write-Host "WhatIf: Base - $(($base | Split-Path -Leaf) -join ', ')" -ForegroundColor Yellow }
     if ('Certificates' -in $run) {
-        $what = switch ($certMode) { 'files' { Split-Path -Leaf $certFile } 'acme' { "wait for certKey(s) $($site.certificates.certKeys -join ', ')" } default { 'nothing' } }
+        $what = switch ($certMode) { 'files' { ($certFile | Split-Path -Leaf) -join ', ' } 'acme' { "wait for certKey(s) $($site.certificates.certKeys -join ', ')" } default { 'nothing' } }
         Write-Host "WhatIf: Certificates ($certMode) - $what" -ForegroundColor Yellow
     }
     if ('Objects' -in $run) { Write-Host "WhatIf: Objects - $(($objects | Split-Path -Leaf) -join ', ')" -ForegroundColor Yellow }
@@ -97,7 +98,7 @@ $cred = if ($Credential) { $Credential } else { Get-Credential nsroot -Message "
 $prompted = @()
 # only the secrets that the files of the phases in this run reference (${env:NAME})
 $runFiles = @(); if ('Base' -in $run) { $runFiles += $base }; if ('Objects' -in $run) { $runFiles += $objects }
-if ('Certificates' -in $run -and $certMode -eq 'files') { $runFiles += $certFile }
+if ('Certificates' -in $run -and $certMode -eq 'files') { $runFiles += @($certFile) }
 $used = @($runFiles | ForEach-Object { [regex]::Matches((Get-Content -Raw $_), '\$\{env:([A-Za-z0-9_]+)\}') } | ForEach-Object { $_.Groups[1].Value })
 foreach ($name in @($site.secrets | Where-Object { $_ -and $_ -in $used })) {
     if (-not [Environment]::GetEnvironmentVariable($name)) { Set-Item "Env:$name" (Read-Host $name -MaskInput); $prompted += $name }
@@ -134,7 +135,7 @@ try {
     # --- Certificates ------------------------------------------------------------------------------------------------
     if ('Certificates' -in $run -and $certMode -eq 'files') {
         Write-Host "`n########## Certificates (files) ##########" -ForegroundColor Cyan
-        & (Join-Path $PSScriptRoot 'Deploy-NsCertificates.ps1') -ConfigFile $certFile @common
+        foreach ($f in $certFile) { & (Join-Path $PSScriptRoot 'Deploy-NsCertificates.ps1') -ConfigFile $f @common }
     }
     elseif ('Certificates' -in $run -and $certMode -eq 'acme') {
         $keys = @($site.certificates.certKeys)

@@ -12,6 +12,8 @@
       4. binds it to existing vservers ("bindTo": LB, Gateway, AAA, CS ... any SSL vserver)
          - with "replace": true the currently bound server cert is unbound first
            (re-bound automatically if the new bind fails)
+    "files" (optional): more files uploaded to /nsconfig/ssl before the certificates, always overwritten - e.g. the
+    first copy of a CRL (see examples/08-mtls-client-ca.json).
 
     Run this BEFORE Deploy-NsObjects.ps1 for new deployments (the objects can then bind the certkey by name),
     or on its own for renewals.
@@ -40,9 +42,9 @@ Import-Module (Join-Path $PSScriptRoot 'NetScalerNitro.psm1') -Force
 
 $loaded = Import-NitroConfig $ConfigFile -NsIp $NsIp
 $cfg    = $loaded.Config
-if (-not @($cfg.certificates).Where({ $_ }).Count) {
+if (-not @($cfg.certificates).Where({ $_ }).Count -and -not @($cfg.files).Where({ $_ }).Count) {
     $hint = if ($cfg.steps) { " It contains 'steps' - use Deploy-NsObjects.ps1 for this file." } else { '' }
-    throw "Config file '$ConfigFile' has no 'certificates' entries - nothing to do, nothing was changed or saved.$hint"
+    throw "Config file '$ConfigFile' has no 'certificates' or 'files' entries - nothing to do, nothing was changed or saved.$hint"
 }
 if (-not $Credential) { $Credential = Get-Credential -Message 'NetScaler NITRO login' }
 $sslDir = '/nsconfig/ssl'
@@ -129,7 +131,12 @@ Connect-Nitro -NsIp $cfg.nsip -Credential $Credential -SkipCertificateCheck:$Ski
 try {
     if ($Backup -and $PSCmdlet.ShouldProcess('system backup', 'create')) { [void](New-NitroBackup) }
 
-    foreach ($c in $cfg.certificates) {
+    # other files for /nsconfig/ssl, e.g. the first copy of a CRL (14.1 does not build it from the HTTP URL);
+    # always overwritten, so a re-run brings a newer copy
+    if (@($cfg.files).Where({ $_ }).Count) { Write-Host "`n# files" -ForegroundColor Cyan }
+    foreach ($f in @($cfg.files | Where-Object { $_ })) { [void](Send-NsFile $f $true) }
+
+    foreach ($c in @($cfg.certificates | Where-Object { $_ })) {
         Write-Host "`n# $($c.name)" -ForegroundColor Cyan
         $ow = [bool]$c.overwrite
 

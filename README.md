@@ -102,6 +102,7 @@ netscaler-nitro/
 │   ├── 00-prereq.json             host name, DNS, NTP, default SSL profile, least-privilege certificate user
 │   ├── 00-network.json            optional static routes / VLAN / SNIP (all steps skip:true)
 │   ├── 01-certs-example.json
+│   ├── 01-certs-client-ca.json    optional client CA chains + first CRL copies for 08
 │   ├── 02-lb-storefront.json
 │   ├── 03-aaa-saml.json           SAML IdP ...
 │   ├── 03-aaa-oidc-entra.json     ... or Microsoft Entra ID via OIDC (same AAA/profile names)
@@ -109,6 +110,7 @@ netscaler-nitro/
 │   ├── 05-ssl-hardening.json      cipher group (forward secrecy + AEAD only), strict HTTP profile with WebSocket
 │   ├── 06-callback.json           optional dedicated StoreFront callback vserver
 │   ├── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
+│   ├── 08-mtls-client-ca.json     optional client certificates on the Gateway: several CA chains, CRL Mandatory
 │   └── site.example.json          site file for Deploy-NsSite.ps1 (VPX parameters + the files above in order)
 ├── tests/
 │   ├── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
@@ -173,7 +175,7 @@ netscaler-vpx-deploy: [docs/end-to-end.md](docs/end-to-end.md).
 ./tests/Test-NsObjects.ps1    # no NetScaler needed: fake NITRO API on 127.0.0.1
 ./tests/Test-NsFirmware.ps1   # firmware upgrade flow against a fake NITRO API
 ./tests/Test-NsLasLicense.ps1 # LAS licensing (status of several appliances, request, activation)
-./tests/Test-NsSite.ps1       # end-to-end site deploy: phases, pin on first contact, -From / -SkipVpx
+./tests/Test-NsSite.ps1       # end-to-end site deploy: phases, pin on first contact, -From / -SkipVpx, CRL upload
 ```
 
 ## Related
