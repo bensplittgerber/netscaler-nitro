@@ -46,6 +46,7 @@ foreach ($p in 'Tls12','Tls13') { foreach ($np in $false,$true) {
 | `Resource already exists [certkeyName Contents, X]` | Same certificate already installed as certkey `X` |
 | `278: Invalid argument` | Wrong parameter name/value; compare with the NITRO reference or a GET of an existing object |
 | `2054: No such policy exists` | Referenced policy missing (order of steps) |
+| `1496: Auditlog service exists with this server information` | Adding a syslog action to a server:port right after one was removed: with TCP the NetScaler keeps the old session (and an internal service for that address) until the connection closes. Close it on the listener side (e.g. restart the listener) or wait, then add again. Seen on 14.1-73.58 |
 
 ## Running the wrong script
 

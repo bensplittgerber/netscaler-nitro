@@ -1,0 +1,33 @@
+{
+  "nsip": "https://192.0.2.10",
+
+  "steps": [
+    { "comment": "OPTIONAL: client certificate usage monitoring - one audit line per successful Gateway logon with a client certificate, to a remote syslog listener",
+      "note": "EXAMPLE only, to show the automation. Run after 04-gateway.json and 08-mtls-client-ca.json. Adds its own syslog action and a global syslog policy NEXT TO existing logging (nothing is replaced). Changes no authentication, mTLS or CRL setting: the rewrite policy is NOREWRITE with goto NEXT. The listener and the parsing side are in pki-monitoring (docs/netscaler-cert-usage.md). See docs/monitoring.md." },
+
+    { "comment": "Remote syslog destination: TCP, INFORMATIONAL only, user-defined audit messages on",
+      "note": "Plain TCP syslog: no encryption, no sender authentication - send it only to a listener on a trusted network that accepts the NSIPs only. Do NOT raise the level to DEBUG for this: DEBUG also sends AAA/OAuth internals (authorization codes)." },
+    { "resource": "auditsyslogaction", "data": {
+        "name": "sla_monitoring", "serverip": "192.0.2.20", "serverport": 5140, "transport": "TCP",
+        "loglevel": ["INFORMATIONAL"], "mgmtloglevel": ["NONE"], "dateformat": "YYYYMMDD", "timezone": "GMT_TIME", "userdefinedauditlog": "YES" } },
+    { "resource": "auditsyslogpolicy", "data": { "name": "slp_monitoring", "rule": "true", "action": "sla_monitoring" } },
+    { "resource": "auditsyslogglobal_auditsyslogpolicy_binding",
+      "data": { "policyname": "slp_monitoring", "priority": 900, "globalbindtype": "SYSTEM_GLOBAL" },
+      "note": "Global binding next to the existing ones (other priority). The journal removes only this binding (DELETE ?args=policyname:slp_monitoring)." },
+
+    { "comment": "Certificate usage line for ONE Gateway: written when the Gateway sends the StoreFront logon of an authenticated session",
+      "note": "The Gateway name is a literal on purpose (CLIENT.IP.DST is the StoreFront back end on this request). Never add AAA.USER.ATTRIBUTE(\"accesstoken\") or any other token. Copy the next three steps per Gateway to monitor. idp_upn needs an IdP action that extracts a 'upn' attribute; it stays empty otherwise." },
+    { "resource": "auditmessageaction", "data": {
+        "name": "ma_cert_usage_gw_example_com", "loglevel": "INFORMATIONAL",
+        "stringbuilderexpr": "\"NSMON|v1|gateway_logon|gateway=gw_example_com|client_ip=\" + CLIENT.IP.SRC + \"|cert_serial=\" + CLIENT.SSL.CLIENT_CERT.SERIALNUMBER + \"|cert_issuer=\" + CLIENT.SSL.CLIENT_CERT.ISSUER + \"|cert_subject=\" + CLIENT.SSL.CLIENT_CERT.SUBJECT + \"|aaa_user=\" + AAA.USER.NAME + \"|idp_upn=\" + AAA.USER.ATTRIBUTE(\"upn\")" } },
+    { "resource": "rewritepolicy", "data": {
+        "name": "rw_pol_cert_usage_gw_example_com",
+        "rule": "CLIENT.SSL.CLIENT_CERT.EXISTS && (HTTP.REQ.URL.TO_LOWER.ENDSWITH(\"gatewayauth/login\") || HTTP.REQ.URL.TO_LOWER.ENDSWITH(\"citrixagbasic/authenticate\"))",
+        "action": "NOREWRITE", "logaction": "ma_cert_usage_gw_example_com",
+        "comment": "certificate usage audit line only - changes nothing" } },
+    { "resource": "vpnvserver_rewritepolicy_binding", "data": {
+        "name": "gw_example_com", "policy": "rw_pol_cert_usage_gw_example_com", "priority": 90,
+        "gotopriorityexpression": "NEXT", "bindpoint": "REQUEST" },
+      "note": "Priority below the Gateway's own REQUEST rewrite policies, goto NEXT: they still run. Pick a free priority if 90 is taken." }
+  ]
+}

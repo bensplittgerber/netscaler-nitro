@@ -27,12 +27,15 @@ $state = [hashtable]::Synchronized(@{
         'authenticationpolicy|auth_pol_existing'     = @{ name = 'auth_pol_existing' }
         'vpnvserver|gw_test'                         = @{ name = 'gw_test' }
         'vpnsessionpolicy|sess_pol_test'             = @{ name = 'sess_pol_test' }
+        'auditsyslogpolicy|slp_customer'             = @{ name = 'slp_customer' }   # unrelated customer logging
     })
     bindings = [System.Collections.ArrayList]::Synchronized([System.Collections.ArrayList]@(
         @{ resource = 'authenticationpolicylabel_authenticationpolicy_binding'; key = 'lbl_test'
            data = @{ labelname = 'lbl_test'; policyname = 'auth_pol_existing'; priority = 100 } }
         @{ resource = 'vpnvserver_vpnsessionpolicy_binding'; key = 'gw_test'
            data = @{ name = 'gw_test'; policy = 'sess_pol_test'; priority = 100 } }
+        @{ resource = 'auditsyslogglobal_auditsyslogpolicy_binding'; key = 'global'
+           data = @{ policyname = 'slp_customer'; priority = 100 } }
     ))
     requests = [System.Collections.ArrayList]::Synchronized([System.Collections.ArrayList]::new())
 })
@@ -61,6 +64,26 @@ $server = Start-ThreadJob -ArgumentList $listener, $state, $keyOf -ScriptBlock {
         $data = if ($body) { $body[$res] } else { $null }
         if ($res -eq 'login') { $out.sessionid = 'test-session' }
         elseif ($res -in 'logout', 'nsconfig') { }
+        elseif ($res -match '^[a-z]+global_[a-z]+_binding$') {
+            # global bindings: no parent object, no name in the path (GET lists, DELETE ?args=policyname:x)
+            $mine = @($state.bindings | Where-Object { $_.resource -eq $res })
+            if ($key) { $code = 400; $out = @{ errorcode = 1092; message = "Invalid argument [$key]" } }
+            else {
+                switch ($req.HttpMethod) {
+                    'GET' { if ($mine.Count) { $out[$res] = @($mine | ForEach-Object { $_.data }) } }
+                    'PUT' {
+                        if ($mine | Where-Object { $_.data.policyname -eq $data.policyname }) { $code = 409; $out = @{ errorcode = 273; message = 'Policy is already bound' } }
+                        else { [void]$state.bindings.Add(@{ resource = $res; key = 'global'; data = $data }) }
+                    }
+                    'DELETE' {
+                        $argText = [uri]::UnescapeDataString(($req.Url.Query -replace '^\?args=', ''))
+                        $pol = (($argText -split ',') | Where-Object { $_ -like 'policyname:*' }) -replace '^policyname:', ''
+                        $hit = $mine | Where-Object { $_.data.policyname -eq $pol } | Select-Object -First 1
+                        if ($hit) { $state.bindings.Remove($hit) } else { $code = 404; $out = @{ errorcode = 258; message = 'No such resource' } }
+                    }
+                }
+            }
+        }
         elseif ($res -like '*_binding') {
             $parentKey = if ($key) { $key } else { $data[$keyOf[($res -split '_')[0]] ?? 'name'] ?? $data.labelname ?? $data.name }
             $mine = @($state.bindings | Where-Object { $_.resource -eq $res -and $_.key -eq $parentKey })
@@ -136,6 +159,9 @@ $config = Join-Path $work 'rerun-test.json'
         @{ resource = 'sslcipher_sslciphersuite_binding'; data = @{ ciphergroupname = 'cg_test'; ciphername = 'TLS1.3-AES256-GCM-SHA384'; cipherpriority = 1 } }
         @{ resource = 'sslprofile_sslcipher_binding'; data = @{ name = 'ssl_prof_test'; ciphername = 'cg_test'; cipherpriority = 1 } }
         @{ resource = 'vpnurl';                    data = @{ urlname = 'bm_test'; linkname = 'test (RDP)'; actualurl = 'rdp://jump01.example.org' } }
+        @{ resource = 'auditsyslogaction';         data = @{ name = 'sla_test'; serverip = '192.0.2.20'; serverport = 5140; transport = 'TCP' } }
+        @{ resource = 'auditsyslogpolicy';         data = @{ name = 'slp_test'; rule = 'true'; action = 'sla_test' } }
+        @{ resource = 'auditsyslogglobal_auditsyslogpolicy_binding'; data = @{ policyname = 'slp_test'; priority = 900 } }
     )
 } | ConvertTo-Json -Depth 10 | Set-Content $config -Encoding utf8
 
@@ -164,8 +190,10 @@ try {
     Assert ($j.Count -eq 1) 'one journal written'
     $entries = @((Get-Content -Raw $j[0].FullName | ConvertFrom-Json).entries)
     $names = @($entries | ForEach-Object { "$($_.resource)|$($_.key)|$($_.args.policyname)$($_.args.ciphername)" })
-    Assert ($entries.Count -eq 7) "7 journal entries (got $($entries.Count): $($names -join '; '))"
+    Assert ($entries.Count -eq 10) "10 journal entries (got $($entries.Count): $($names -join '; '))"
     Assert ($names -contains 'vpnurl|bm_test|') 'bookmark journaled with key urlname'
+    $glob = $entries | Where-Object resource -eq 'auditsyslogglobal_auditsyslogpolicy_binding'
+    Assert ($glob -and $glob.global -and $glob.args.policyname -eq 'slp_test') 'global syslog binding journaled as global, by policyname'
     Assert (-not ($names -match '^authenticationpolicylabel\|lbl_test')) 'pre-existing label NOT journaled (F11)'
     Assert (-not ($names -match 'auth_pol_existing')) 'pre-existing label binding NOT journaled (F11)'
     Assert (-not ($names -match '^vpnvserver_vpnsessionpolicy_binding')) 'pre-existing (silent) vserver binding NOT journaled (F11)'
@@ -179,10 +207,17 @@ try {
     Assert ($out -notmatch 'already bound|already exists') 're-run [EXISTS] all come from the lookup, not from an error'
     Assert ((Get-Journals).Count -eq 1) 're-run wrote no second journal'
     Assert ($out -match 'No journal written') 're-run says "No journal written"'
-    Assert (([regex]::Matches($out, '\[EXISTS\]')).Count -eq 11) 'all 11 steps [EXISTS]'
+    Assert (([regex]::Matches($out, '\[EXISTS\]')).Count -eq 14) 'all 14 steps [EXISTS]'
 
     Write-Host "`n== 4. undo of the first journal" -ForegroundColor Cyan
+    $state.requests.Clear()
     $out = Invoke-Quiet { & (Join-Path $work 'Undo-NsObjects.ps1') -Journal $j[0].FullName -Credential $cred -Confirm:$false }
+    Assert ($state.requests -contains 'DELETE auditsyslogglobal_auditsyslogpolicy_binding') 'global binding removed without a name in the path'
+    $globalLeft = @($state.bindings | Where-Object resource -eq 'auditsyslogglobal_auditsyslogpolicy_binding' | ForEach-Object { $_.data.policyname })
+    Assert (-not ($globalLeft -contains 'slp_test')) 'created global syslog binding removed'
+    Assert ($globalLeft -contains 'slp_customer') 'existing customer syslog binding kept'
+    Assert (-not $state.objects.ContainsKey('auditsyslogpolicy|slp_test') -and -not $state.objects.ContainsKey('auditsyslogaction|sla_test')) 'created syslog policy + action removed'
+    Assert ($state.objects.ContainsKey('auditsyslogpolicy|slp_customer')) 'customer syslog policy kept'
     Assert ($out -notmatch '\[FAILED\]') "undo without [FAILED] lines"
     Assert ($out -match 'remove sslprofile_sslcipher_binding') 'profile cipher binding removed explicitly (cipher group is removed before the profile)'
     Assert (-not $state.objects.ContainsKey('authenticationpolicy|auth_pol_new')) 'created policy removed'
