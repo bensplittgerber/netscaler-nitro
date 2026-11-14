@@ -59,6 +59,11 @@ is written to disk. A secret that is already set in the environment is used as i
 unattended run pass the nsroot login with `-Credential` (a wrong password then stops the run instead of asking
 again).
 
+End of a real run on a lab ESXi host (new throwaway VPX, 14.1-73.58, private lab addresses): the last object
+files with their journals, the Gateway logon page on the new VIP and the Gateway vserver UP.
+
+![End-to-end site deploy](screenshots/h-end-to-end-site.png)
+
 ## Trust
 
 After the Vpx phase the self-signed management key is read and pinned (same trust-on-first-use as the deploy, a few

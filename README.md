@@ -13,7 +13,7 @@ Tested against NetScaler **14.1** (lab and a production migration).
 ## Screenshots
 
 Real runs against a NetScaler 14.1 lab VPX (HA pair) with throwaway `*_example_*` objects; host name and management
-key pin are redacted.
+key pin are redacted (except the end-to-end run on a throwaway lab VPX).
 
 <details>
 <summary><b>One flow</b>: deploy two files, journal + undo hint per file</summary>
@@ -80,6 +80,17 @@ waits for the new build. Left: the "unsaved config" flag every node sets at boot
 Addresses and pins replaced with placeholders. See [docs/firmware-upgrade.md](docs/firmware-upgrade.md).
 
 ![Firmware upgrade on ESXi and KVM](docs/screenshots/g-firmware-esxi-kvm.png)
+</details>
+
+<details>
+<summary><b>End to end</b>: empty ESXi host to a working Gateway from one site file</summary>
+
+`.\scripts\Deploy-NsSite.ps1 -SiteFile <site file>`: new VPX, base, certificates, then the object files
+(Gateway, SSL hardening, mTLS with three client CA chains). Front: the Gateway logon page on the new VIP and the
+Gateway vserver UP in the GUI of the new VPX. Unredacted: a throwaway lab VPX with its private lab addresses, VM
+name and management key pin. See [docs/end-to-end.md](docs/end-to-end.md).
+
+![End-to-end site deploy](docs/screenshots/h-end-to-end-site.png)
 </details>
 
 ## Repository layout
