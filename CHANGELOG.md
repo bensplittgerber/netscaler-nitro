@@ -4,6 +4,8 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-14
+
 ### Added
 - `scripts/Deploy-NsSite.ps1` + `examples/site.example.json` + `docs/end-to-end.md`: empty ESXi host to a working
   Gateway in one run, driven by one site file - new VPX with netscaler-vpx-deploy, base files, certificates
