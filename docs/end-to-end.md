@@ -36,7 +36,7 @@ Each phase uses the existing tools; nothing new happens on the NetScaler that th
 | `base` | object files before the certificates (`00-network.json`, `00-prereq.json`) |
 | `certificates.mode` | `files`: `Deploy-NsCertificates.ps1` with `certificates.file` (one file or a list, e.g. `01-certs-example.json` + `01-certs-client-ca.json` for the optional mTLS file `08-mtls-client-ca.json`); `acme`: wait for `certificates.certKeys`; `none` |
 | `certificates.certKeys`, `acmeConfigs`, `waitMinutes` | `acme` mode: certKey names acme-ns deploys, config names printed as commands, how long to wait (default 60) |
-| `objects` | object files after the certificates, in order |
+| `objects` | object files after the certificates, in order. Optional files are not listed by default: add `08-mtls-client-ca.json` and/or `09-netscaler-monitoring.json` at the end when you want them ([monitoring.md](monitoring.md)) |
 | `secrets` | environment variables the files use (`${env:NAME}`), prompted masked once |
 
 ## Run

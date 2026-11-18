@@ -239,6 +239,13 @@ $script:NitroBindingArgs = 'policy','policyname','servicename','servername','ser
 # sslprofile_sslcipher_binding / sslvserver_sslcipher_binding return a cipher group or alias as cipheraliasname)
 $script:NitroGetAliases = @{ ciphername = 'cipheraliasname' }
 
+function Test-NitroGlobalBinding {
+    <# Global bindings (e.g. auditsyslogglobal_auditsyslogpolicy_binding) have no parent object: NITRO lists them
+       with GET <resource> and removes one with DELETE <resource>?args=policyname:<name> - no name in the path. #>
+    param([string]$Resource)
+    $Resource -match '^[a-z]+global_[a-z]+_binding$'
+}
+
 function Test-NitroExists {
     <# F11: looks up the object or binding of an add/bind step BEFORE it is sent. NITRO answers some adds of an
        existing object (e.g. authenticationpolicylabel, vpnvserver policy bindings) with success instead of 409, so
@@ -247,6 +254,15 @@ function Test-NitroExists {
     param([Parameter(Mandatory)][string]$Resource, $Data)
     $d   = ConvertTo-NitroHashtable $Data
     $key = Get-NitroKey -Resource $Resource -Data $d
+    if (Test-NitroGlobalBinding $Resource) {
+        if (-not $d.Contains('policyname')) { return $null }
+        $r = Invoke-Nitro -Method GET -Resource $Resource
+        if ($r.ErrorCode -ne 0) {
+            if ($r.ErrorCode -eq 258 -or $r.Http -eq 404) { return $false }
+            return $null
+        }
+        return @($r.Data.$Resource | Where-Object { $_ -and $_.policyname -eq $d.policyname }).Count -gt 0
+    }
     if (-not $key -or $Resource -eq 'route') { return $null }
 
     $r = Invoke-Nitro -Method GET -Resource "$Resource/$([uri]::EscapeDataString([string]$d[$key]))"
@@ -299,6 +315,15 @@ function Get-NitroUndoEntry {
     if (-not $primary -or $Resource -eq 'route') {
         $what = if ($primary) { " [$($d[$primary])]" } else { ' (no key found)' }
         return [ordered]@{ type = 'manual'; resource = $Resource; note = "not reversed automatically: $Resource$what" }
+    }
+
+    if (Test-NitroGlobalBinding $Resource) {
+        if (-not $d.Contains('policyname')) {
+            return [ordered]@{ type = 'manual'; resource = $Resource; note = "not reversed automatically: $Resource (no policyname)" }
+        }
+        $globalArgs = [ordered]@{ policyname = $d.policyname }
+        if ($d.Contains('globalbindtype')) { $globalArgs.globalbindtype = $d.globalbindtype }
+        return [ordered]@{ type = 'binding'; resource = $Resource; key = $d.policyname; args = $globalArgs; global = $true }
     }
 
     $delArgs = [ordered]@{}
@@ -370,7 +395,8 @@ function Invoke-NitroUndo {
         $q     = if ($pairs.Count) { @{ args = ($pairs -join ',') } } else { $null }
         $label = "remove $($e.resource) [$($e.key)]"
         if ($pairs.Count) { $label += " $([uri]::UnescapeDataString($pairs -join ', '))" }
-        $r = Invoke-Nitro -Method DELETE -Resource "$($e.resource)/$([uri]::EscapeDataString([string]$e.key))" -Query $q
+        $path = if ($e.global) { $e.resource } else { "$($e.resource)/$([uri]::EscapeDataString([string]$e.key))" }
+        $r = Invoke-Nitro -Method DELETE -Resource $path -Query $q
         if ($r.ErrorCode -ne 0 -and $r.Message -match 'does not exist|No such|not found') {
             Write-Host "  [GONE]    $label  (already removed)" -ForegroundColor DarkGray
             continue

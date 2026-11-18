@@ -122,6 +122,7 @@ netscaler-nitro/
 │   ├── 06-callback.json           optional dedicated StoreFront callback vserver
 │   ├── 07-authorization.json      optional authorization policies via AAA group (clientless / RDP proxy)
 │   ├── 08-mtls-client-ca.json     optional client certificates on the Gateway: several CA chains, CRL Mandatory
+│   ├── 09-netscaler-monitoring.json  optional: remote syslog + one audit line per Gateway logon with a client cert
 │   └── site.example.json          site file for Deploy-NsSite.ps1 (VPX parameters + the files above in order)
 ├── tests/
 │   ├── Test-NsObjects.ps1         offline test against a fake NITRO API (dry run, journal, re-run, undo)
@@ -207,6 +208,7 @@ netscaler-vpx-deploy: [docs/end-to-end.md](docs/end-to-end.md).
 - [Running on Linux](docs/linux.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [End to end: empty ESXi host to a working Gateway](docs/end-to-end.md)
+- [Certificate usage monitoring (optional)](docs/monitoring.md)
 - [Changelog](CHANGELOG.md)
 
 ## Security notes

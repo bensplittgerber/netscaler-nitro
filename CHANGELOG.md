@@ -4,6 +4,15 @@ All notable changes to this project. Format based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+### Added
+- `examples/09-netscaler-monitoring.json` + `docs/monitoring.md` (optional): remote TCP syslog at INFORMATIONAL and one
+  audit messageaction line per successful Gateway logon with a client certificate (serial, issuer, subject, IdP user;
+  never a token), via a NOREWRITE rewrite policy with goto NEXT on the selected Gateway. Adds its own global syslog
+  policy next to existing logging. Parsing and inventory correlation: pki-monitoring.
+- Global bindings (`*global_*_binding`, e.g. `auditsyslogglobal_auditsyslogpolicy_binding`): lookup before add with
+  `GET <resource>`, journal by `policyname`, undo with `DELETE <resource>?args=policyname:<p>` (no name in the path).
+  Regression test in `tests/Test-NsObjects.ps1` (an existing customer syslog binding is kept).
+
 ## [1.4.0] - 2026-11-14
 
 ### Added

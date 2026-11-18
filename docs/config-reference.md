@@ -86,6 +86,9 @@ add lb vserver lb_web SSL 10.0.20.11 443 -persistenceType SOURCEIP
 | `service_lbmonitor_binding` | removed by `name` + `monitor_name` |
 | `aaagroup_authorizationpolicy_binding` | removed by `groupname` + `policy` |
 | `nshttpprofile`, `authorizationpolicy`, `aaagroup` | removed by `name` / `groupname` |
+| `auditsyslogaction`, `auditsyslogpolicy`, `auditmessageaction`, `rewritepolicy` | removed by `name` |
+| `vpnvserver_rewritepolicy_binding` | removed by `name` + `policy` + `bindpoint` |
+| `*global_*_binding` (e.g. `auditsyslogglobal_auditsyslogpolicy_binding`) | looked up with `GET <resource>` (list) and removed with `DELETE <resource>?args=policyname:<p>` - no name in the path; other global bindings stay |
 | `nshostname`, `dnsnameserver`, `ntpserver`, `ntpsync`, `route`, all `"method": "PUT"` and `"action"` steps | `[MANUAL]`, not reversed |
 
 Easiest way to get the exact JSON for an existing object: read it from a configured appliance, e.g. `GET https://<nsip>/nitro/v1/config/vpnvserver/<name>`.
